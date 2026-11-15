@@ -8,7 +8,7 @@ object Guide {
     fun connect(mode: Mode): String = when (mode) {
         Mode.CABLE ->
             "1. Plug the phone into the PC with a USB cable.\n" +
-                "2. Phone: turn on USB tethering (button below, or Settings > Mobile network > Hotspot & tethering).\n" +
+                "2. Phone: turn on USB tethering: Settings > Mobile network > Personal hotspot > USB tethering (the button opens the Mobile network page).\n" +
                 "3. Tap Start. The address of the USB link appears above.\n\n" +
                 "Windows 10/11 sets up the USB network by itself; nothing to install. " +
                 "Turn mobile data off if you do not want the PC to use it."

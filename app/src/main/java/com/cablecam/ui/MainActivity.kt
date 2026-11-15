@@ -180,7 +180,7 @@ class MainActivity : Activity() {
         connect.addView(urlList, lp().apply { topMargin = dp(8) })
         hint = label("", 13f, col(R.color.text_dim))
         connect.addView(hint, lp().apply { topMargin = dp(4) })
-        tetherButton = tonalButton("Open tethering settings") { openTetherSettings() }
+        tetherButton = tonalButton("Open mobile network settings") { openTetherSettings() }
         connect.addView(tetherButton, lp().apply { topMargin = dp(10) })
         adbToggle = textButton("") { showAdb = !showAdb; urlKey = ""; refresh() }
         connect.addView(adbToggle, lp())
@@ -317,7 +317,7 @@ class MainActivity : Activity() {
             }
         }
         hint.text = when {
-            shown.isEmpty() && mode == Mode.CABLE -> "No USB network yet. Plug in the cable and turn on USB tethering."
+            shown.isEmpty() && mode == Mode.CABLE -> "No USB network yet. Plug in the cable, then turn on USB tethering (Personal hotspot > USB tethering)."
             shown.isEmpty() -> "No Wi-Fi, hotspot or Bluetooth network found."
             shown.any { it.kind == LinkKind.BLUETOOTH } -> "Bluetooth link: the bitrate is lowered automatically."
             else -> "Open the address without /cam.ts in a browser to test the connection."
@@ -382,13 +382,19 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this).setTitle("Setup guide").setMessage(body).setPositiveButton("Close", null).show()
     }
 
+    /**
+     * Opens the page that leads to tethering. The direct tethering screens are not reachable on MagicOS
+     * (the intents start and close at once), but the mobile network page is, and it lists "Personal hotspot".
+     */
     private fun openTetherSettings() {
-        val tether = Intent().setClassName("com.android.settings", "com.android.settings.TetherSettings")
-        try { startActivity(tether) } catch (e: Exception) {
-            try { startActivity(Intent(AndroidSettings.ACTION_WIRELESS_SETTINGS)) } catch (e2: Exception) {
-                Toast.makeText(this, "Open Settings > Hotspot & tethering yourself", Toast.LENGTH_LONG).show()
-            }
+        val routes = listOf(
+            Intent(AndroidSettings.ACTION_NETWORK_OPERATOR_SETTINGS),
+            Intent(AndroidSettings.ACTION_WIRELESS_SETTINGS),
+        )
+        for (i in routes) {
+            try { startActivity(i); return } catch (e: Exception) { /* try the next one */ }
         }
+        Toast.makeText(this, "Open Settings > Mobile network > Personal hotspot yourself", Toast.LENGTH_LONG).show()
     }
 
     // ---- start / stop and permissions -------------------------------------------------------

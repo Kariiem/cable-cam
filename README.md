@@ -8,7 +8,7 @@ The screen has a status card with the preview and Start/Stop, a Connect card wit
 
 1. Install `app-release.apk` and open Cable Cam. Allow the camera (and notifications).
 2. Pick a **Mode**:
-   - **Cable (USB):** plug in the cable and turn on **USB tethering** (the app has a shortcut button). Windows 10/11 needs no driver.
+   - **Cable (USB):** plug in the cable and turn on **USB tethering** (Settings > Mobile network > Personal hotspot > USB tethering on the HONOR; the app has a button that opens the Mobile network page). Windows 10/11 needs no driver.
    - **Wireless:** same Wi-Fi as the PC, the PC on the phone's hotspot, or Bluetooth tethering (low bitrate, soft picture).
 3. Tap **Start**. The app lists the address for each link that exists, e.g. `http://192.168.42.129:8765/cam.ts`.
 
@@ -25,6 +25,9 @@ With adb on the PC and USB debugging on: `adb forward tcp:8765 tcp:8765`, then u
 
 ### If OBS or the browser cannot connect
 A VPN on the phone (including DNS/ad blockers such as RethinkDNS) blocks connections from the PC. Pause it while streaming: on the HONOR X9c the stream was unreachable from the PC until the VPN was stopped. The app warns when a VPN is active.
+
+### Wi-Fi and tethering
+USB tethering can stay on while the phone is on Wi-Fi; the app lists every address it finds. (Not yet checked on this phone: if the USB address does not appear, try turning the phone's Wi-Fi off.)
 
 ## Details
 - Port 8765, `GET /cam.ts` (video/mp2t), `GET /` (status page). Only private-network and loopback peers are served.
