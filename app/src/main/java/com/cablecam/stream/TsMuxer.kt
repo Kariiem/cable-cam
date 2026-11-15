@@ -114,6 +114,11 @@ class TsMuxer {
         private const val SYNC: Byte = 0x47
         private const val MASK33 = (1L shl 33) - 1
 
+        /** Null packet (PID 0x1FFF): ignored by receivers; used as a keep-alive when no video flows. */
+        val NULL_PACKET = ByteArray(PACKET) { 0xFF.toByte() }.also {
+            it[0] = SYNC; it[1] = 0x1F; it[3] = 0x10
+        }
+
         /** Access unit delimiter NAL (type 9, any slice type). */
         val AUD = byteArrayOf(0, 0, 0, 1, 0x09, 0xF0.toByte())
 
