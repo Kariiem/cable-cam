@@ -11,7 +11,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.Typeface
+import android.graphics.Outline
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,12 +23,13 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.WindowInsets
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import com.cablecam.R
@@ -45,24 +46,33 @@ class MainActivity : Activity() {
     private var service: StreamService? = null
     private var status = StreamService.Status()
     private var links: List<Link> = emptyList()
-    private var torchOn = false
     private var vpn = false
+    private var torchOn = false
     private var showAdb = false
+    private var urlKey = ""
     private val main = Handler(Looper.getMainLooper())
+    private var pendingSurface: android.view.Surface? = null
 
     private lateinit var surface: SurfaceView
+    private lateinit var liveBadge: TextView
+    private lateinit var modeSeg: Segmented
+    private lateinit var statusDot: View
+    private lateinit var statusLabel: TextView
+    private lateinit var statusDetail: TextView
+    private lateinit var startButton: TextView
+    private lateinit var bannerBox: LinearLayout
     private lateinit var urlList: LinearLayout
     private lateinit var hint: TextView
-    private lateinit var modeButton: Button
-    private lateinit var startButton: Button
-    private lateinit var statusText: TextView
-    private lateinit var settingsButtons: LinearLayout
-    private lateinit var tetherButton: Button
-    private lateinit var adbButton: Button
-    private lateinit var adbInfo: TextView
-    private val urlHolder by lazy { LinearLayout(this).apply { orientation = LinearLayout.VERTICAL } }
+    private lateinit var tetherButton: TextView
+    private lateinit var adbToggle: TextView
+    private lateinit var adbBox: LinearLayout
+    private lateinit var segCamera: Segmented
+    private lateinit var segSize: Segmented
+    private lateinit var segFps: Segmented
+    private lateinit var bitrateValue: TextView
+    private lateinit var swStabilise: Switch
+    private lateinit var swTorch: Switch
     private lateinit var dimOverlay: View
-    private var pendingSurface: android.view.Surface? = null
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(n: ComponentName, b: IBinder) {
@@ -104,72 +114,110 @@ class MainActivity : Activity() {
         super.onStop()
     }
 
-    // ---- UI -------------------------------------------------------------------------------
+    // ---- building the screen ----------------------------------------------------------------
 
-    private fun color(id: Int) = getColor(id)
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
-    private fun text(s: String, size: Float = 14f, dim: Boolean = false, bold: Boolean = false) = TextView(this).apply {
-        text = s; textSize = size
-        setTextColor(color(if (dim) R.color.text_dim else R.color.text))
-        if (bold) typeface = Typeface.DEFAULT_BOLD
-    }
-
-    private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
-        text = label; isAllCaps = false
-        setOnClickListener { onClick() }
-    }
+    private fun lp(w: Int = -1, h: Int = -2, weight: Float = 0f) = LinearLayout.LayoutParams(w, h, weight)
 
     private fun buildUi(): View {
         val root = FrameLayout(this)
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(24)) }
-        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(text("Cable Cam", 22f, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
-        modeButton = button("") { chooseMode() }
-        header.addView(modeButton)
-        col.addView(header)
+        val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(28)) }
 
-        // Preview (portrait, like the stream) next to Start and the status.
-        surface = SurfaceView(this)
-        surface.holder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceCreated(h: SurfaceHolder) { pendingSurface = h.surface; service?.setPreview(h.surface) }
-            override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) {}
-            override fun surfaceDestroyed(h: SurfaceHolder) { pendingSurface = null; service?.setPreview(null) }
-        })
-        surface.holder.setFixedSize(1280, 720)       // the camera delivers landscape buffers; the system rotates them
-        val previewBox = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(surface, ViewGroup.LayoutParams(-1, -1)) }
-        val top = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        top.addView(previewBox, LinearLayout.LayoutParams(dp(135), dp(240)).apply { rightMargin = dp(12) })
+        // Title and mode.
+        page.addView(label("Cable Cam", 26f, bold = true), lp().apply { topMargin = dp(8) })
+        page.addView(label("Phone camera for OBS", 14f, col(R.color.text_dim)))
+        modeSeg = Segmented(this, Mode.entries.map { if (it == Mode.CABLE) "USB cable" else "Wi-Fi / Bluetooth" }) {
+            settings.mode = Mode.entries[it]; urlKey = ""; refresh()
+        }
+        page.addView(modeSeg, lp().apply { topMargin = dp(14) })
+
+        // Hero: preview + status + start.
+        val hero = card()
+        val heroRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        surface = SurfaceView(this).apply {
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(v: View, o: Outline) = o.setRoundRect(0, 0, v.width, v.height, dp(14).toFloat())
+            }
+            holder.addCallback(object : SurfaceHolder.Callback {
+                override fun surfaceCreated(h: SurfaceHolder) { pendingSurface = h.surface; service?.setPreview(h.surface) }
+                override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) {}
+                override fun surfaceDestroyed(h: SurfaceHolder) { pendingSurface = null; service?.setPreview(null) }
+            })
+            holder.setFixedSize(1280, 720)       // the camera delivers landscape buffers; the system rotates them
+        }
+        liveBadge = label("PREVIEW", 11f, Color.WHITE, bold = true).apply {
+            background = rounded(0x99000000.toInt(), 8); setPadding(dp(8), dp(3), dp(8), dp(3))
+        }
+        val previewBox = FrameLayout(this).apply {
+            background = rounded(Color.BLACK, 14)
+            addView(surface, FrameLayout.LayoutParams(-1, -1))
+            addView(liveBadge, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(8), dp(8), 0, 0) })
+        }
+        heroRow.addView(previewBox, lp(dp(132), dp(234)).apply { rightMargin = dp(14) })
         val side = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        startButton = button("Start") { toggleStreaming() }.apply { textSize = 18f }
-        side.addView(startButton, LinearLayout.LayoutParams(-1, -2))
-        statusText = text("", 13f)
-        side.addView(statusText)
-        top.addView(side, LinearLayout.LayoutParams(0, -2, 1f))
-        col.addView(top, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        val pill = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        statusDot = View(this)
+        pill.addView(statusDot, lp(dp(10), dp(10)).apply { rightMargin = dp(8) })
+        statusLabel = label("", 18f, bold = true)
+        pill.addView(statusLabel)
+        side.addView(pill)
+        statusDetail = label("", 13f, col(R.color.text_dim))
+        side.addView(statusDetail, lp().apply { topMargin = dp(6) })
+        startButton = filledButton("Start") { toggleStreaming() }
+        side.addView(startButton, lp().apply { topMargin = dp(16) })
+        heroRow.addView(side, lp(0, -2, 1f))
+        hero.addView(heroRow)
+        page.addView(hero, lp().apply { topMargin = dp(16) })
 
-        col.addView(text("Address for OBS (Media Source > Input)", 13f, dim = true).apply { setPadding(0, dp(12), 0, 0) })
+        bannerBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        page.addView(bannerBox, lp())
+
+        // Connect.
+        val connect = card()
+        connect.addView(label("Connect OBS", 17f, bold = true))
+        connect.addView(label("OBS > Sources > + > Media Source > untick Local File > Input:", 13f, col(R.color.text_dim)), lp().apply { topMargin = dp(4) })
         urlList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(urlList)
-        hint = text("", 13f, dim = true)
-        col.addView(hint)
-        tetherButton = button("Open tethering settings") { openTetherSettings() }
-        col.addView(tetherButton)
+        connect.addView(urlList, lp().apply { topMargin = dp(8) })
+        hint = label("", 13f, col(R.color.text_dim))
+        connect.addView(hint, lp().apply { topMargin = dp(4) })
+        tetherButton = tonalButton("Open tethering settings") { openTetherSettings() }
+        connect.addView(tetherButton, lp().apply { topMargin = dp(10) })
+        adbToggle = textButton("") { showAdb = !showAdb; urlKey = ""; refresh() }
+        connect.addView(adbToggle, lp())
+        adbBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        connect.addView(adbBox, lp())
+        page.addView(connect, lp().apply { topMargin = dp(12) })
 
-        settingsButtons = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(settingsButtons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        // Camera settings, built once and updated by refresh().
+        val cam = card()
+        cam.addView(label("Camera", 17f, bold = true))
+        segCamera = Segmented(this, listOf("Back", "Front")) { settings.frontCamera = it == 1; changed() }
+        cam.addView(settingRow("Lens", segCamera))
+        segSize = Segmented(this, Presets.HEIGHTS.map { "${it}p" }) { settings.height = Presets.HEIGHTS[it]; changed() }
+        cam.addView(settingRow("Size", segSize))
+        segFps = Segmented(this, Presets.FPS.map { "$it" }) {
+            settings.fps = Presets.FPS[it]; if (settings.fps > 30) settings.height = 720; changed()
+        }
+        cam.addView(settingRow("Frame rate", segFps))
+        bitrateValue = label("", 14f, col(R.color.accent), bold = true).apply {
+            setPadding(dp(14), dp(10), dp(14), dp(10)); background = pressable(col(R.color.field), 12)
+            setOnClickListener { chooseBitrate() }
+        }
+        cam.addView(settingRow("Bitrate", bitrateValue))
+        swStabilise = Switch(this)
+        cam.addView(settingRow("Stabilisation", swStabilise))
+        swTorch = Switch(this)
+        cam.addView(settingRow("Torch", swTorch))
+        cam.addView(label("60 fps needs 720p. 1080p is 30 fps.", 12f, col(R.color.text_dim)), lp().apply { topMargin = dp(6) })
+        page.addView(cam, lp().apply { topMargin = dp(12) })
 
-        val row = LinearLayout(this)
-        row.addView(button("OBS guide") { showGuide() }, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(button("Dim screen") { dim(true) }, LinearLayout.LayoutParams(0, -2, 1f))
-        col.addView(row)
-        adbButton = button("") { showAdb = !showAdb; refresh() }
-        col.addView(adbButton)
-        adbInfo = text("", 13f, dim = true)
-        col.addView(adbInfo)
-        col.addView(urlHolder)
+        // Footer actions.
+        val foot = LinearLayout(this)
+        foot.addView(tonalButton("Setup guide") { showGuide() }, lp(0, -2, 1f).apply { rightMargin = dp(6) })
+        foot.addView(tonalButton("Dim screen") { dim(true) }, lp(0, -2, 1f).apply { leftMargin = dp(6) })
+        page.addView(foot, lp().apply { topMargin = dp(12) })
 
-        val scroll = ScrollView(this).apply { addView(col) }
+        val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(page) }
         root.addView(scroll, FrameLayout.LayoutParams(-1, -1))
 
         dimOverlay = FrameLayout(this).apply {
@@ -194,10 +242,19 @@ class MainActivity : Activity() {
         return root
     }
 
-    private fun dim(on: Boolean) {
-        dimOverlay.visibility = if (on) View.VISIBLE else View.GONE
-        window.attributes = window.attributes.apply { screenBrightness = if (on) 0.01f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+    private fun settingRow(name: String, control: View) = LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        addView(label(name, 15f), lp(0, -2, 1f))
+        addView(control, LinearLayout.LayoutParams(-2, -2))
+        layoutParams = lp().apply { topMargin = dp(12) }
     }
+
+    private fun banner(text: String, fill: Int, color: Int) = label(text, 13f, color).apply {
+        background = rounded(fill, 14); setPadding(dp(14), dp(10), dp(14), dp(10))
+        layoutParams = lp().apply { topMargin = dp(10) }
+    }
+
+    // ---- state -> views ---------------------------------------------------------------------
 
     private fun refreshLinks() {
         val now = Links.current()
@@ -205,54 +262,98 @@ class MainActivity : Activity() {
         if (now != links || v != vpn) { links = now; vpn = v; refresh() }
     }
 
-    /** Which links to show: the mode's own, or all of them if that mode has none yet. */
-    private fun shownLinks(): List<Link> {
-        val usb = links.filter { it.kind == LinkKind.USB }
-        val wireless = links.filter { it.kind != LinkKind.USB }
-        return if (settings.mode == Mode.CABLE) usb else wireless
-    }
+    private fun shownLinks(): List<Link> =
+        if (settings.mode == Mode.CABLE) links.filter { it.kind == LinkKind.USB } else links.filter { it.kind != LinkKind.USB }
 
     private fun refresh() {
         if (!::settings.isInitialized) return
+        val s = status
         val mode = settings.mode
-        modeButton.text = "Mode: ${mode.label}"
-        tetherButton.visibility = if (mode == Mode.CABLE) View.VISIBLE else View.GONE
+        modeSeg.selected = mode.ordinal
 
-        urlList.removeAllViews()
-        val shown = shownLinks()
-        for (l in shown) urlList.addView(urlRow("${l.kind.label}  ${l.iface}", l.url))
-        adbButton.visibility = if (mode == Mode.CABLE) View.VISIBLE else View.GONE
-        adbButton.text = if (showAdb) "Hide adb alternative" else "No tethering? Use adb instead"
-        adbInfo.visibility = if (mode == Mode.CABLE && showAdb) View.VISIBLE else View.GONE
-        adbInfo.text = Guide.adbAlternative
-        urlHolder.removeAllViews()
-        if (mode == Mode.CABLE && showAdb) urlHolder.addView(urlRow("Address when adb forward is running on the PC", Links.ADB_URL, small = true))
-        val vpnWarning = if (vpn) "A VPN is active on the phone (for example a DNS or ad blocker). It can block connections " +
-            "from the PC: pause it if OBS cannot connect.\n" else ""
-        hint.text = vpnWarning + when {
-            shown.isNotEmpty() -> if (mode == Mode.WIRELESS && shown.any { it.kind == LinkKind.BLUETOOTH })
-                "Bluetooth link: the bitrate is lowered automatically." else ""
-            mode == Mode.CABLE -> "No USB network yet: plug in the cable and turn on USB tethering (see OBS guide)."
-            else -> "No Wi-Fi, hotspot or Bluetooth network found (see OBS guide)."
+        // Status.
+        val (dot, name) = when {
+            s.error != null -> R.color.warn to "Problem"
+            !s.running -> R.color.text_dim to "Stopped"
+            s.clients.isEmpty() -> R.color.amber to "Waiting for OBS"
+            else -> R.color.good to "Streaming"
         }
-
-        startButton.text = if (status.running) "Stop" else "Start"
-        statusText.text = statusLine()
-        statusText.setTextColor(color(if (status.error != null) R.color.warn else R.color.text))
-        if (status.running) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        statusDot.background = dotBackground(this, col(dot))
+        statusLabel.text = name
+        statusDetail.text = when {
+            !s.running -> "Tap Start, then add the address in OBS."
+            s.encoding -> "${s.width}x${s.height} · ${s.fps.toInt()} fps\n${"%.1f".format(s.kbps / 1000f)} of ${"%.1f".format(s.targetKbps / 1000f)} Mbit/s" +
+                "\n${s.clients.size} viewer${if (s.clients.size == 1) "" else "s"}"
+            else -> "The camera is on; video is encoded when OBS connects."
+        }
+        startButton.text = if (s.running) "Stop" else "Start"
+        startButton.background = if (s.running) pressable(col(R.color.warn_container), 14) else pressable(col(R.color.accent), 14)
+        startButton.setTextColor(col(if (s.running) R.color.warn else R.color.on_accent))
+        liveBadge.text = if (s.running && s.clients.isNotEmpty()) "● LIVE" else "PREVIEW"
+        liveBadge.background = rounded(if (s.running && s.clients.isNotEmpty()) 0xCCD32F2F.toInt() else 0x99000000.toInt(), 8)
+        if (s.running) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        rebuildSettings()
+
+        // Banners.
+        bannerBox.removeAllViews()
+        s.error?.let { bannerBox.addView(banner(it, col(R.color.warn_container), col(R.color.warn))) }
+        if (vpn) bannerBox.addView(banner("A VPN is active on the phone (for example a DNS or ad blocker). It can block connections " +
+            "from the PC: pause it if OBS cannot connect.", col(R.color.amber_container), col(R.color.amber)))
+        if (s.thermal >= 3) bannerBox.addView(banner("The phone is hot: quality is reduced.", col(R.color.amber_container), col(R.color.amber)))
+        if (s.dropped > 0) bannerBox.addView(banner("Dropping frames (${s.dropped} in the last 10 s): the link is too slow. Lower the size or bitrate.",
+            col(R.color.amber_container), col(R.color.amber)))
+
+        // Connect card. Rebuilt only when the addresses change, so taps are not interrupted.
+        val shown = shownLinks()
+        val key = "$mode|${shown.map { it.url }}|$showAdb"
+        if (key != urlKey) {
+            urlKey = key
+            urlList.removeAllViews()
+            for (l in shown) urlList.addView(urlRow("${l.kind.label} (${l.iface})", l.url))
+            adbBox.removeAllViews()
+            if (mode == Mode.CABLE && showAdb) {
+                adbBox.addView(label(Guide.adbAlternative, 13f, col(R.color.text_dim)), lp().apply { topMargin = dp(4) })
+                adbBox.addView(urlRow("With adb forward running on the PC", Links.ADB_URL))
+            }
+        }
+        hint.text = when {
+            shown.isEmpty() && mode == Mode.CABLE -> "No USB network yet. Plug in the cable and turn on USB tethering."
+            shown.isEmpty() -> "No Wi-Fi, hotspot or Bluetooth network found."
+            shown.any { it.kind == LinkKind.BLUETOOTH } -> "Bluetooth link: the bitrate is lowered automatically."
+            else -> "Open the address without /cam.ts in a browser to test the connection."
+        }
+        tetherButton.visibility = if (mode == Mode.CABLE) View.VISIBLE else View.GONE
+        adbToggle.visibility = if (mode == Mode.CABLE) View.VISIBLE else View.GONE
+        adbToggle.text = if (showAdb) "Hide adb alternative" else "No tethering? Use adb instead"
+
+        // Camera card.
+        segCamera.selected = if (settings.frontCamera) 1 else 0
+        segSize.selected = Presets.HEIGHTS.indexOf(settings.height)
+        segFps.selected = Presets.FPS.indexOf(settings.fps)
+        bitrateValue.text = if (settings.bitrateKbps == 0) "Automatic" else "${settings.bitrateKbps / 1000f} Mbit/s".replace(".0 ", " ")
+        bind(swStabilise, settings.stabilise) { settings.stabilise = it; changed() }
+        bind(swTorch, torchOn) { torchOn = it; service?.setTorch(it) }
     }
 
-    private fun urlRow(label: String, url: String, small: Boolean = false) = LinearLayout(this).apply {
+    /** Sets a switch without triggering its own listener. */
+    private fun bind(sw: Switch, on: Boolean, onChange: (Boolean) -> Unit) {
+        sw.setOnCheckedChangeListener(null)
+        if (sw.isChecked != on) sw.isChecked = on
+        sw.setOnCheckedChangeListener { _, v -> onChange(v) }
+    }
+
+    private fun urlRow(name: String, url: String) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, dp(4), 0, dp(4))
-        addView(text(label, 12f, dim = true))
-        val line = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        line.addView(text(url, if (small) 14f else 17f, bold = !small).apply { setTextIsSelectable(true) },
-            LinearLayout.LayoutParams(0, -2, 1f))
-        line.addView(button("Copy") { copy(url) })
-        addView(line)
+        layoutParams = lp().apply { topMargin = dp(8) }
+        addView(label(name, 12f, col(R.color.text_dim)))
+        val field = LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            background = pressable(col(R.color.field), 14); setPadding(dp(14), dp(4), dp(6), dp(4))
+            setOnClickListener { copy(url) }
+        }
+        field.addView(label(url, 15f, bold = true, mono = true).apply { setPadding(0, dp(8), 0, dp(8)) }, lp(0, -2, 1f))
+        field.addView(textButton("Copy") { copy(url) }, LinearLayout.LayoutParams(-2, -2))
+        addView(field, lp().apply { topMargin = dp(4) })
     }
 
     private fun copy(s: String) {
@@ -260,50 +361,19 @@ class MainActivity : Activity() {
         Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show()
     }
 
-    private fun statusLine(): String {
-        val s = status
-        if (s.error != null) return s.error
-        if (!s.running) return "Stopped. Tap Start, then add the address in OBS."
-        val who = if (s.clients.isEmpty()) "Waiting for OBS to connect"
-        else "${s.clients.size} client${if (s.clients.size > 1) "s" else ""} connected"
-        val enc = if (s.encoding) " | ${s.width}x${s.height} ${s.fps.toInt()} fps | ${s.kbps} of ${s.targetKbps} kbit/s" else ""
-        val hot = if (s.thermal >= 3) " | phone is hot: quality reduced" else ""
-        val drop = if (s.dropped > 0) " | dropped ${s.dropped} frames (slow link)" else ""
-        return who + enc + hot + drop
-    }
-
-    private fun rebuildSettings() {
-        settingsButtons.removeAllViews()
-        var row: LinearLayout? = null
-        fun add(label: String, onClick: () -> Unit) {
-            val r = row?.takeIf { it.childCount == 1 } ?: LinearLayout(this).also { row = it; settingsButtons.addView(it) }
-            r.addView(button(label, onClick), LinearLayout.LayoutParams(0, -2, 1f))
-        }
-        add("Camera: ${if (settings.frontCamera) "front" else "back"}") { settings.frontCamera = !settings.frontCamera; changed() }
-        add("Size: ${settings.height}p") { pick("Size (60 fps needs 720p)", Presets.HEIGHTS.map { "${it}p" }, Presets.HEIGHTS.indexOf(settings.height)) { settings.height = Presets.HEIGHTS[it]; changed() } }
-        add("Rate: ${settings.fps} fps") {
-            pick("Frame rate (60 fps switches to 720p)", Presets.FPS.map { "$it fps" }, Presets.FPS.indexOf(settings.fps)) {
-                settings.fps = Presets.FPS[it]; if (settings.fps > 30) settings.height = 720; changed()
-            }
-        }
-        add("Bitrate: ${if (settings.bitrateKbps == 0) "auto" else "${settings.bitrateKbps} k"}") {
-            pick("Bitrate", Presets.BITRATES_KBPS.map { if (it == 0) "Automatic (by link)" else "$it kbit/s" },
-                Presets.BITRATES_KBPS.indexOf(settings.bitrateKbps)) { settings.bitrateKbps = Presets.BITRATES_KBPS[it]; changed() }
-        }
-        add("Stabilise: ${if (settings.stabilise) "on" else "off"}") { settings.stabilise = !settings.stabilise; changed() }
-        add("Torch: ${if (torchOn) "on" else "off"}") { torchOn = !torchOn; service?.setTorch(torchOn); refresh() }
-    }
-
     private fun changed() { service?.applySettings(); refresh() }
 
-    private fun pick(title: String, items: List<String>, current: Int, onPick: (Int) -> Unit) {
-        AlertDialog.Builder(this).setTitle(title)
-            .setSingleChoiceItems(items.toTypedArray(), current) { d, i -> onPick(i); d.dismiss() }
-            .setNegativeButton("Cancel", null).show()
+    private fun chooseBitrate() {
+        val items = Presets.BITRATES_KBPS.map { if (it == 0) "Automatic (by link)" else "${it / 1000f} Mbit/s".replace(".0 ", " ") }
+        AlertDialog.Builder(this).setTitle("Bitrate")
+            .setSingleChoiceItems(items.toTypedArray(), Presets.BITRATES_KBPS.indexOf(settings.bitrateKbps)) { d, i ->
+                settings.bitrateKbps = Presets.BITRATES_KBPS[i]; d.dismiss(); changed()
+            }.setNegativeButton("Cancel", null).show()
     }
 
-    private fun chooseMode() {
-        pick("Mode", Mode.entries.map { it.label }, settings.mode.ordinal) { settings.mode = Mode.entries[it]; refresh() }
+    private fun dim(on: Boolean) {
+        dimOverlay.visibility = if (on) View.VISIBLE else View.GONE
+        window.attributes = window.attributes.apply { screenBrightness = if (on) 0.01f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
     }
 
     private fun showGuide() {
@@ -321,22 +391,18 @@ class MainActivity : Activity() {
         }
     }
 
-    // ---- start / stop and permissions -----------------------------------------------------
+    // ---- start / stop and permissions -------------------------------------------------------
 
     private fun toggleStreaming() {
         if (status.running) { StreamService.stop(this); return }
         val need = listOf(Manifest.permission.CAMERA, Manifest.permission.POST_NOTIFICATIONS)
             .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (need.isEmpty()) startStreaming() else requestPermissions(need.toTypedArray(), REQ_PERMS)
-    }
-
-    private fun startStreaming() {
-        StreamService.start(this)      // the bound service reports its status through onStatus
+        if (need.isEmpty()) StreamService.start(this) else requestPermissions(need.toTypedArray(), REQ_PERMS)
     }
 
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, results: IntArray) {
         if (code != REQ_PERMS) return
-        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) startStreaming()
+        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) StreamService.start(this)
         else Toast.makeText(this, "Camera permission is needed to stream", Toast.LENGTH_LONG).show()
     }
 

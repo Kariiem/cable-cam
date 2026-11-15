@@ -4,6 +4,8 @@ Use your Android phone's camera as a webcam source in OBS, with no watermark and
 The phone encodes H.264 and serves it as MPEG-TS over HTTP. OBS's built-in **Media Source** opens the address, and OBS's **Virtual Camera** passes it on to Teams, Zoom, Meet and so on.
 
 ## Phone
+The screen has a status card with the preview and Start/Stop, a Connect card with the address(es) and copy buttons, and a Camera card (lens, size, frame rate, bitrate, stabilisation, torch). Warnings (VPN active, hot phone, dropped frames, errors) show as coloured banners.
+
 1. Install `app-release.apk` and open Cable Cam. Allow the camera (and notifications).
 2. Pick a **Mode**:
    - **Cable (USB):** plug in the cable and turn on **USB tethering** (the app has a shortcut button). Windows 10/11 needs no driver.

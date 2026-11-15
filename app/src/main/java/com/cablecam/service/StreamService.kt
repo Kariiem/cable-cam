@@ -63,6 +63,8 @@ class StreamService : Service() {
     private var fpsNow = 0f
     private var kbpsNow = 0
     private var stopEncoderAt = 0L
+    private val dropHistory = ArrayDeque<Long>()      // frames dropped per second, last 10 s
+    private var lastDropped = 0L
     private var activePreview: Surface? = null
 
     /** Called on the main thread whenever the status changes (about once a second while streaming). */
@@ -71,7 +73,7 @@ class StreamService : Service() {
 
     fun status() = Status(
         running, error, clients, encoder != null, encoder?.width ?: 0, encoder?.height ?: 0,
-        fpsNow, kbpsNow, encoder?.currentKbps ?: 0, thermalStatus, server?.framesDropped?.get() ?: 0,
+        fpsNow, kbpsNow, encoder?.currentKbps ?: 0, thermalStatus, dropHistory.sum(),
     )
 
     private fun publish() { onStatus?.invoke(status()) }
@@ -237,6 +239,9 @@ class StreamService : Service() {
             val sent = server?.bytesSent?.get() ?: 0L
             kbpsNow = ((sent - lastBytes) * 8 / 1000).toInt(); lastBytes = sent
             fpsNow = frames.toFloat(); frames = 0
+            val dropped = server?.framesDropped?.get() ?: 0L
+            dropHistory.addLast(dropped - lastDropped); lastDropped = dropped
+            while (dropHistory.size > 10) dropHistory.removeFirst()
             if (stopEncoderAt != 0L && System.currentTimeMillis() >= stopEncoderAt && clients.isEmpty()) {
                 stopEncoderAt = 0; stopEncoder()
             }

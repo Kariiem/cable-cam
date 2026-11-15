@@ -1,9 +1,16 @@
 <resources>
     <color name="window_bg">#0E1014</color>
-    <color name="panel_bg">#181B22</color>
+    <color name="card">#171A21</color>
+    <color name="card_stroke">#262B36</color>
+    <color name="field">#1F232C</color>
     <color name="text">#E8EAF0</color>
     <color name="text_dim">#9AA1B2</color>
     <color name="accent">#6CA8FF</color>
+    <color name="on_accent">#06214A</color>
+    <color name="accent_container">#1D3560</color>
     <color name="good">#56D364</color>
+    <color name="amber">#E3A33B</color>
     <color name="warn">#FF7B72</color>
+    <color name="warn_container">#3A1B19</color>
+    <color name="amber_container">#3A2D12</color>
 </resources>

@@ -71,7 +71,7 @@ Legend: **verified** = confirmed by the user on real hardware; **built** = imple
 | 2. Camera → encoder → TS → HTTP | **built** | unit tests incl. ffmpeg decode; camera + encoder + server run on the phone (screenshot, ffprobe via adb forward) |
 | 3. Cable mode | **built** | link detection, URL/copy, tethering shortcut, adb forward URL, dim overlay; tethering itself not tried |
 | 4. Wireless mode | **built** | Wi-Fi/hotspot/Bluetooth links, per-link bitrate; not tried on hardware |
-| 5. UI / settings | **built** | camera, size, fps, bitrate, stabilisation, torch, guide; no per-setting hardware checks |
+| 5. UI / settings | **built** | modernised (cards, segmented controls, status pill, banners, light/dark); checked by screenshots on the phone; camera, size, fps, bitrate, stabilisation, torch, guide |
 | 6. Robustness | **built** | camera retry, encoder fallback formats, thermal back-off, encoder linger; none tested under stress |
 | 7. Release | **built** | `scripts/build-release.sh`, README; signed APK to `C:\Users\Public\CableCam\` |
 
