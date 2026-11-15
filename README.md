@@ -74,7 +74,7 @@ Phone (Android app)                                                  PC
 
 ## Quick start
 
-1. **Install the app.** Download `app-release.apk` from the repository's Releases page when one is published, or build it yourself (see [Development](#development)). Android asks you to allow installing from your browser or file manager.
+1. **Install the app.** Download `cable-cam-1.0.apk` from the [latest release](https://github.com/Kariiem/cable-cam/releases/latest) (or build it yourself, see [Development](#development)). Android asks you to allow installing from your browser or file manager, and Play Protect may warn that the app is from an unknown developer: the APK is signed, and its SHA-256 is in the release notes so you can check it. Requires Android 10 or newer.
 2. **Open Cable Cam** and allow the camera (and notifications, so you can stop the stream from the notification).
 3. **Choose a mode** at the top: *USB cable*, or *Wi-Fi / Bluetooth*. See [Connecting phone and PC](#connecting-phone-and-pc).
 4. **Tap Start.** The Connect card lists an address for each link, for example `http://192.168.42.129:8765/cam.ts`.
