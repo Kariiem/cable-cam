@@ -29,11 +29,17 @@ A VPN on the phone (including DNS/ad blockers such as RethinkDNS) blocks connect
 ### Wi-Fi and tethering
 USB tethering can stay on while the phone is on Wi-Fi; the app lists every address it finds. (Not yet checked on this phone: if the USB address does not appear, try turning the phone's Wi-Fi off.)
 
+### If the picture lags
+1. In OBS set **Network Buffering** to 0 MB and add `probesize=32768 fflags=nobuffer flags=low_delay` to FFmpeg Options, then switch the source off and on.
+2. Use **720p, 30 fps**. 1080p doubles the data and the receiver's work.
+3. Prefer the **USB cable** mode: Wi-Fi from phone to router to PC crosses the radio twice and is bursty. Measured on a 72 Mbit/s PC Wi-Fi link: frames arrived with a median 26 ms and worst-case 357 ms of jitter after the app was tuned; before, bursts of 0.7-1.7 s were common.
+4. The app shows "phone delay" (camera to encoded frame, about 80-100 ms). Anything beyond that is the link or OBS.
+
 ## Details
 - Port 8765, `GET /cam.ts` (video/mp2t), `GET /` (status page). Only private-network and loopback peers are served.
 - H.264 High, no B-frames, keyframe every second, MPEG-TS with PCR. Encoding runs only while a client is connected. No audio.
 - Automatic bitrate: 4 Mbit/s at 720p30 (8 at 1080p30, +50% at 60 fps), 1.2 Mbit/s over Bluetooth, reduced when the phone gets hot.
-- A slow client loses frames up to the next keyframe, so latency does not build up.
+- Nothing is dropped for stalls under about a second; the backlog is sent at link speed afterwards. A client more than about a second behind loses frames up to the next keyframe, so latency cannot build up without limit. Keyframes every 2 s (about 100 KB each), requested at most once a second.
 - The stream is portrait (720x1280 or 1080x1920), like the phone held upright: each frame is rotated on the GPU before encoding. The app is portrait-locked.
 - 60 fps is offered at 720p only; 1080p is 30 fps. A software-decoding PC struggles with 1080p60.
 - Keep the screen on while streaming (**Dim screen** saves power). Exempt the app from battery optimisation if MagicOS kills it.

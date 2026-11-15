@@ -45,7 +45,7 @@ class VideoEncoder(
         setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
         setInteger(MediaFormat.KEY_BIT_RATE, currentKbps * 1000)
         setInteger(MediaFormat.KEY_FRAME_RATE, fps)
-        setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+        setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)   // keyframes are about 6x the size of other frames: fewer of them, smoother link
         setInteger(MediaFormat.KEY_BITRATE_MODE,
             if (vbr) MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR else MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
         if (withProfile) {

@@ -23,7 +23,7 @@ Target phone: HONOR X9c, MagicOS 9 (Android 15, API 35), arm64, MediaTek Dimensi
   - Rejected: MJPEG (high bitrate, unusable over Bluetooth; kept only as a latency fallback), RTSP (more protocol for no gain), WebRTC (huge dependency).
 - **Camera2 + MediaCodec, no CameraX**, no third-party libraries. One capture session with two outputs: the encoder's input Surface and a preview SurfaceView.
   - Defaults: back camera, 720p (720x1280 portrait) @ 30 fps, about 4 Mbit/s (USB/Wi-Fi) or 1.2 Mbit/s (Bluetooth). 1080p and 60 fps as options when the camera supports them.
-  - Encoder: no B-frames, 1 s keyframe interval, `PARAMETER_KEY_REQUEST_SYNC_FRAME` when a client connects. Continuous-video autofocus; optional video stabilisation.
+  - Encoder: no B-frames, 2 s keyframe interval (keyframes are about 100 KB against about 17 KB for other frames; they cause Wi-Fi bursts), `PARAMETER_KEY_REQUEST_SYNC_FRAME` when a client connects. Continuous-video autofocus; optional video stabilisation.
 - **Stream server:** plain `ServerSocket`; an HTTP/1.0 response header followed by an endless TS stream.
   - Each new client gets PAT/PMT + SPS/PPS and starts at the next keyframe.
   - Several clients at once (OBS + a test player).
@@ -110,7 +110,7 @@ OBS reconnects (reconnect delay), camera errors and disconnects, encoder restart
 AAC audio in the TS, portrait output, zoom/exposure controls, MJPEG endpoint for an OBS Browser Source (latency fallback), OBS scene-collection export.
 
 ## Risks / unknowns (test early)
-- **Latency (measured 2026-11-15):** phone side (camera to encoder output) about 80-95 ms, shown in the app. The 1-2 s lag the user saw came from the receiver: OBS Network Buffering default 2 MB, and FFmpeg's default probesize (5 MB, about 5 s of stream; first frame after 6.3 s versus 1.4 s with `probesize=32768`). Wi-Fi power saving caused repeated frame drops (55-66 per 10 s); a `WIFI_MODE_FULL_LOW_LATENCY` lock cut that to about 11 per 10 s and emptied the send queue. Glass-to-glass in OBS not yet measured by the user.
+- **Latency (measured 2026-11-15):** phone side (camera to encoder output) about 80-95 ms, shown in the app. The 1-2 s lag the user saw came from the receiver: OBS Network Buffering default 2 MB, and FFmpeg's default probesize (5 MB, about 5 s of stream; first frame after 6.3 s versus 1.4 s with `probesize=32768`). Wi-Fi power saving caused repeated frame drops (55-66 per 10 s); a `WIFI_MODE_FULL_LOW_LATENCY` lock cut that to about 11 per 10 s and emptied the send queue. Glass-to-glass in OBS not yet measured by the user. Measured with a probe client (`arrival time - frame timestamp`, 25 s on Wi-Fi, PC on a 72 Mbit/s Wi-Fi link): before tuning median 57-81 ms / p95 382-888 ms / 39-47 stalls over 100 ms; after (2 s keyframes, keyframe requests rate-limited, drop queue 30 frames, 32 KB socket buffer, DSCP AF41): median 26 ms / p95 177 ms / max 357 ms / 6 stalls.
 - **VPN on the phone blocks inbound connections** (seen with RethinkDNS on the user's phone). The app warns when a `tun*`/`ppp*`/`wg*` interface is up.
 - **USB tethering on the HONOR X9c:** interface name; subnet (Android 11+ randomises tethering subnets, so `192.168.42.x` is not guaranteed); whether it can be enabled without mobile data; whether the PC can reach the phone's port.
 - **Work PC:** a tethering network adapter may be blocked by policy or flagged by the security software (endpoint security software, which reports to an admin). Test there first; never try to evade it. adb forward is the fallback, and may also be unavailable there.

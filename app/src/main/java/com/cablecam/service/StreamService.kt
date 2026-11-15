@@ -110,7 +110,7 @@ class StreamService : Service() {
 
         val s = StreamServer(StreamServer.DEFAULT_PORT, object : StreamServer.Listener {
             override fun onClientsChanged(clients: List<StreamServer.ClientInfo>) { main.post { clientsChanged(clients) } }
-            override fun onNeedKeyframe() { main.post { encoder?.requestKeyframe() } }
+            override fun onNeedKeyframe() { main.post { requestKeyframe() } }
         }, status = { "${settings.height}p${settings.fps}, ${fpsNow.toInt()} fps, $kbpsNow kbit/s" })
         try {
             s.start()
@@ -185,6 +185,16 @@ class StreamService : Service() {
             stopEncoderAt = System.currentTimeMillis() + ENCODER_LINGER_MS     // OBS often reconnects at once
         }
         publish()
+    }
+
+    private var lastKeyframeRequest = 0L
+
+    /** A keyframe is a burst of about 100 KB, so requests are spaced out: a stall must not trigger a second burst. */
+    private fun requestKeyframe() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastKeyframeRequest < KEYFRAME_REQUEST_GAP_MS) return
+        lastKeyframeRequest = now
+        encoder?.requestKeyframe()
     }
 
     private fun startEncoder() {
@@ -277,6 +287,7 @@ class StreamService : Service() {
         private const val NOTIF_ID = 1
         private const val ACTION_STOP = "com.cablecam.STOP"
         private const val ENCODER_LINGER_MS = 5000L
+        private const val KEYFRAME_REQUEST_GAP_MS = 1000L
         @Volatile var instance: StreamService? = null
             private set
 

@@ -114,6 +114,7 @@ class StreamServer(
 
     private fun stream(s: Socket, out: OutputStream) {
         s.sendBufferSize = SEND_BUFFER       // small, so a slow link backs up into our queue, not the kernel's
+        runCatching { s.trafficClass = TRAFFIC_CLASS }
         s.soTimeout = 0
         out.write(
             ("HTTP/1.0 200 OK\r\nContent-Type: video/mp2t\r\nCache-Control: no-cache, no-store\r\n" +
@@ -210,10 +211,17 @@ class StreamServer(
     companion object {
         const val DEFAULT_PORT = 8765
         const val STREAM_PATH = "/cam.ts"
-        /** About a third of a second of video: more than that queued means the link is too slow. */
-        const val MAX_QUEUED_FRAMES = 10
-        const val MAX_QUEUED_BYTES = 1 shl 20
-        private const val SEND_BUFFER = 64 * 1024
+        /**
+         * About one second of video. Wi-Fi stalls of a few hundred ms are normal and are absorbed here without
+         * losing a frame (the backlog is sent at link speed afterwards); only a longer stall drops frames,
+         * so latency cannot grow without limit.
+         */
+        const val MAX_QUEUED_FRAMES = 30
+        const val MAX_QUEUED_BYTES = 3 shl 20
+        /** Kept small, so frames wait here (where they can be dropped if ever needed) and not in the kernel. */
+        private const val SEND_BUFFER = 32 * 1024
+        /** DSCP AF41: Wi-Fi's WMM puts this in the video queue, which gets air time before best-effort traffic. */
+        private const val TRAFFIC_CLASS = 0x88
         private const val MAX_CONNECTIONS = 8
         private const val MAX_REQUEST = 8192
         private const val REQUEST_TIMEOUT_MS = 5000
