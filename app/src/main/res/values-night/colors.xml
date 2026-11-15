@@ -1,0 +1,9 @@
+<resources>
+    <color name="window_bg">#0E1014</color>
+    <color name="panel_bg">#181B22</color>
+    <color name="text">#E8EAF0</color>
+    <color name="text_dim">#9AA1B2</color>
+    <color name="accent">#6CA8FF</color>
+    <color name="good">#56D364</color>
+    <color name="warn">#FF7B72</color>
+</resources>
