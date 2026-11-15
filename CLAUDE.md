@@ -4,13 +4,13 @@ Android app that turns the phone's camera into a webcam source for OBS, without 
 
 Two modes: **Cable (USB)** = USB tethering (fallback: `adb forward tcp:8765 tcp:8765` → `http://127.0.0.1:8765/cam.ts`), and **Wireless** = Wi-Fi LAN / phone hotspot / Bluetooth tethering (PAN). Same server in both; the mode picks the shown address, bitrate preset and instructions.
 
-- Docs: `PLAN.md` (design, OBS setup, phases, status table, risks). Keep it updated when the design or status changes. A `README.md` comes later.
+- Docs: `PLAN.md` (design, OBS setup, phases, status table, risks). Keep it updated when the design or status changes. `README.md` has the user steps.
 
 ## Status (2026-11-15)
-Planning only: nothing built, nothing verified on hardware. Next step is Phase 0 (hardware spikes: USB tethering, Bluetooth PAN, minimal stream + latency in OBS).
+All phases are implemented and unit-tested; the app runs on the phone and the stream decodes with ffprobe through `adb forward`. Not yet confirmed by the user: USB tethering, Bluetooth PAN, OBS Media Source, Virtual Camera, latency. Open issue: TCP 8765 from the LAN (WSL) timed out although ping works (see PLAN.md status table). See PLAN.md for details.
 
-## Planned layout
-- `app/`: package `com.cablecam`; `ui/` (MainActivity, mode/settings UI, in-app OBS guide, `CrashReport.kt`), `camera/CameraController.kt`, `stream/VideoEncoder.kt`, `stream/TsMuxer.kt`, `stream/StreamServer.kt`, `service/StreamService.kt`
+## Layout
+- `app/`: package `com.cablecam`; `ui/` (MainActivity, Guide, `CrashReport.kt`), `camera/CameraController.kt`, `stream/` (VideoEncoder, TsMuxer, StreamServer, Access), `net/Links.kt`, `settings/` (Settings, Presets), `service/StreamService.kt`
 - `scripts/build-release.sh`: tests + signed APK + checksums into `dist/`
 
 ## Toolchain and commands

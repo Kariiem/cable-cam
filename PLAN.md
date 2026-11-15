@@ -66,14 +66,14 @@ Legend: **verified** = confirmed by the user on real hardware; **built** = imple
 
 | Phase | State | Notes |
 | --- | --- | --- |
-| 0. Hardware spikes | **todo** | USB tethering, Bluetooth PAN, minimal stream + latency |
-| 1. Skeleton | **todo** | |
-| 2. Camera → encoder → TS → HTTP | **todo** | |
-| 3. Cable mode | **todo** | |
-| 4. Wireless mode | **todo** | |
-| 5. UI / settings | **todo** | |
-| 6. Robustness | **todo** | |
-| 7. Release | **todo** | |
+| 0. Hardware spikes | **partly** | Stream over `adb forward` **verified by me, not by the user in OBS**: ffprobe from WSL decodes 1080p H.264 from the phone. From the LAN (192.168.1.3 to the phone's 192.168.1.2) ping works but TCP 8765 timed out; cause not found (the phone has a VPN `tun0`; router/MagicOS firewall untested). USB tethering, Bluetooth PAN, OBS and latency: **todo** |
+| 1. Skeleton | **built** | |
+| 2. Camera → encoder → TS → HTTP | **built** | unit tests incl. ffmpeg decode; camera + encoder + server run on the phone (screenshot, ffprobe via adb forward) |
+| 3. Cable mode | **built** | link detection, URL/copy, tethering shortcut, adb forward URL, dim overlay; tethering itself not tried |
+| 4. Wireless mode | **built** | Wi-Fi/hotspot/Bluetooth links, per-link bitrate; not tried on hardware |
+| 5. UI / settings | **built** | camera, size, fps, bitrate, stabilisation, torch, guide; no per-setting hardware checks |
+| 6. Robustness | **built** | camera retry, encoder fallback formats, thermal back-off, encoder linger; none tested under stress |
+| 7. Release | **built** | `scripts/build-release.sh`, README; signed APK to `C:\Users\Public\CableCam\` |
 
 ## Small-step plan
 ### Phase 0: spikes on hardware (before the real app)
