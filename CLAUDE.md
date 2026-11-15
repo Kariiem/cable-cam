@@ -1,6 +1,6 @@
 # Cable Cam
 
-Android app that turns the phone's camera into a webcam source for OBS, without a watermark (replaces DroidCam's OBS integration). The phone encodes H.264 and serves it as MPEG-TS over HTTP; OBS's built-in **Media Source** opens `http://<phone-ip>:8765/cam.ts`. OBS's own **Virtual Camera** then feeds Teams/Zoom/Meet. No PC software besides OBS.
+Android app that turns the phone's camera into a webcam source for OBS, without a watermark (replaces DroidCam's OBS integration). The phone serves the camera over HTTP in two formats, chosen by the URL typed in OBS's built-in **Media Source** (neither is the default): `http://<phone-ip>:8765/cam.ts` = H.264 in MPEG-TS, `http://<phone-ip>:8765/cam.mjpg` = Motion JPEG. OBS's own **Virtual Camera** then feeds Teams/Zoom/Meet. No PC software besides OBS.
 
 Two modes: **Cable (USB)** = USB tethering (fallback: `adb forward tcp:8765 tcp:8765` → `http://127.0.0.1:8765/cam.ts`), and **Wireless** = Wi-Fi LAN / phone hotspot / Bluetooth tethering (PAN). Same server in both; the mode picks the shown address, bitrate preset and instructions.
 
@@ -10,7 +10,7 @@ Two modes: **Cable (USB)** = USB tethering (fallback: `adb forward tcp:8765 tcp:
 All phases are implemented and unit-tested; the app runs on the phone and the stream decodes with ffprobe through `adb forward`. Confirmed by the user: Wi-Fi and USB tethering both work with the OBS Media Source. Not confirmed: Bluetooth PAN (user skipped it), Virtual Camera (needs the one-time admin registration), final latency after the OBS option changes. Over Wi-Fi the stream decodes from WSL, but only with the phone's VPN (RethinkDNS) stopped; with it on, inbound TCP times out (the app warns about VPNs). See PLAN.md for details.
 
 ## Layout
-- `app/`: package `com.cablecam`; `ui/` (MainActivity, Guide, `CrashReport.kt`), `camera/` (CameraController, FrameRotator = GL pass that feeds the encoder), `stream/` (VideoEncoder, TsMuxer, StreamServer, Access), `net/Links.kt`, `settings/` (Settings, Presets), `service/StreamService.kt`
+- `app/`: package `com.cablecam`; `ui/` (MainActivity, Guide, `CrashReport.kt`), `camera/` (CameraController, FrameRotator = GL pass that feeds the encoder), `stream/` (VideoEncoder, MjpegEncoder, TsMuxer, StreamServer, Access), `net/Links.kt`, `settings/` (Settings, Presets), `service/StreamService.kt`
 - `scripts/build-release.sh`: tests + signed APK + checksums into `dist/`
 
 ## Toolchain and commands

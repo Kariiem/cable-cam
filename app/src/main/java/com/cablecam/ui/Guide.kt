@@ -28,9 +28,10 @@ object Guide {
     val obs =
         "In OBS:\n" +
             "1. Sources > + > Media Source. Uncheck \"Local File\".\n" +
-            "2. Input: the address from this app, like http://192.168.42.129:8765/cam.ts. Input Format: leave empty.\n" +
+            "2. Input: an address from this app. The ending picks the format: /cam.ts is H.264 (light on bandwidth), /cam.mjpg is Motion JPEG " +
+            "(no keyframes, recovers from stalls at once, about 4x the bandwidth). Neither is the default: use the one you type. Input Format: leave empty.\n" +
             "3. Network Buffering: 0 MB (the default is 2 MB, which adds about 2 seconds of delay). Reconnect Delay: 1 s. Hardware decoding: on. " +
-            "\"Restart playback when source becomes active\": off. In the FFmpeg Options field (needed for low delay) enter: probesize=32768 fflags=nobuffer flags=low_delay\n" +
+            "\"Restart playback when source becomes active\": off. In the FFmpeg Options field (needed for low delay) enter: fflags=nobuffer flags=low_delay (for /cam.ts also probesize=32768)\n" +
             "4. For Teams, Zoom or Meet: Start Virtual Camera in OBS, then pick \"OBS Virtual Camera\" in the app.\n\n" +
             "You can check the address in a browser first: it shows a status page.\n" +
             "Nothing is installed on the PC and no firewall rule is needed: OBS connects to the phone."

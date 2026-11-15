@@ -36,8 +36,10 @@ USB tethering can stay on while the phone is on Wi-Fi; the app lists every addre
 4. Prefer the **USB cable** mode: Wi-Fi from phone to router to PC crosses the radio twice and is bursty. Measured on a 72 Mbit/s PC Wi-Fi link: frames arrived with a median 26 ms and worst-case 357 ms of jitter after the app was tuned; before, bursts of 0.7-1.7 s were common.
 5. The app shows "phone delay" (camera to encoded frame, about 80-100 ms). Anything beyond that is the link or OBS.
 
-## MJPEG (experimental, branch `droid-cam`)
-Each link also has `/cam.mjpg`: Motion JPEG, where every picture is a standalone JPEG. There are no keyframes, nothing for the receiver to probe, and a slow client is always sent the newest picture, so delay cannot pile up. It uses more bandwidth (about 9 Mbit/s at 720p30 here, against 4 for H.264). In OBS: Media Source, Input `http://<ip>:8765/cam.mjpg`, Network Buffering 0 MB, FFmpeg Options `fflags=nobuffer flags=low_delay`.
+## Two formats: the URL decides
+The address you type in OBS picks the encoding. Neither is the default and the app does not choose for you: `/cam.ts` is H.264 in MPEG-TS, `/cam.mjpg` is Motion JPEG. The app lists both under each link.
+
+`/cam.mjpg` sends every picture as a standalone JPEG. There are no keyframes, nothing for the receiver to probe, and a slow client is always sent the newest picture, so delay cannot pile up. It uses more bandwidth (about 9 Mbit/s at 720p30 here, against 4 for H.264). In OBS: Media Source, Input `http://<ip>:8765/cam.mjpg`, Network Buffering 0 MB, FFmpeg Options `fflags=nobuffer flags=low_delay` (the `probesize` option is only needed for `/cam.ts`).
 
 Measured with a probe client, 720p30, 20 s each (this phone and PC):
 

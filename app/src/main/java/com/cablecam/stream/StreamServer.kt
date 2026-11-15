@@ -112,7 +112,7 @@ class StreamServer(
                     ?.substringAfter(':')?.trim()?.takeIf { it.isNotEmpty() } ?: "<phone-ip>:$port"
                 respond(
                     out, "200 OK",
-                    "Cable Cam is running.\n\nOBS Media Source input:\n  http://$host$STREAM_PATH\n\n" +
+                    "Cable Cam is running.\n\nOBS Media Source input (the ending picks the format):\n  http://$host$STREAM_PATH   H.264 in MPEG-TS, light on bandwidth\n  http://$host$MJPEG_PATH   Motion JPEG, no keyframes, about 4x the bandwidth\n\n" +
                         "Clients connected: ${clientCount}\n${status()}\n"
                 )
             }
