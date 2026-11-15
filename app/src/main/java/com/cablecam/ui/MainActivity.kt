@@ -12,6 +12,7 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -22,6 +23,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
@@ -178,9 +180,15 @@ class MainActivity : Activity() {
         }
         root.addView(dimOverlay, FrameLayout.LayoutParams(-1, -1))
 
-        root.setOnApplyWindowInsetsListener { v, insets ->
-            val b = insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
-            content.setPadding(b.left, b.top, b.right, b.bottom)
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val b = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                content.setPadding(b.left, b.top, b.right, b.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                content.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
+                    insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            }
             insets
         }
         return root
@@ -216,8 +224,8 @@ class MainActivity : Activity() {
         hint.text = when {
             shown.isNotEmpty() -> if (mode == Mode.WIRELESS && shown.any { it.kind == LinkKind.BLUETOOTH })
                 "Bluetooth link: the bitrate is lowered automatically." else ""
-            mode == Mode.CABLE -> "No USB network yet. ${Guide.connect(mode)}"
-            else -> "No Wi-Fi, hotspot or Bluetooth network found. ${Guide.connect(mode)}"
+            mode == Mode.CABLE -> "No USB network yet: plug in the cable and turn on USB tethering (see OBS guide)."
+            else -> "No Wi-Fi, hotspot or Bluetooth network found (see OBS guide)."
         }
 
         startButton.text = if (status.running) "Stop" else "Start"
