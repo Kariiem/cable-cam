@@ -1,5 +1,8 @@
 # Cable Cam
 
+[![CI](https://github.com/Kariiem/cable-cam/actions/workflows/ci.yml/badge.svg)](https://github.com/Kariiem/cable-cam/actions/workflows/ci.yml)
+[![License: MIT or Unlicense](https://img.shields.io/badge/license-MIT%20%7C%20Unlicense-blue.svg)](COPYING)
+
 **Use your Android phone as a camera source in OBS. No watermark, nothing to install on the PC except OBS.**
 
 Cable Cam turns the phone into a tiny web server that streams its camera. OBS's built-in **Media Source** opens the address, and OBS's own **Virtual Camera** passes the picture on to Teams, Zoom, Google Meet and any other app that wants a webcam. No PC driver, no plugin, no admin rights on the PC side, no firewall prompt: OBS only makes an outgoing connection.
