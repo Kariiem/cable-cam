@@ -155,4 +155,35 @@ class StreamServerTest {
         waitFor("clients dropped") { server.broadcast(frame(1, true)); events.clients == 0 }
         a.close(); b.close()
     }
+
+    @Test fun mjpegStreamIsMultipartAndSlowClientsSkipToTheNewest() {
+        server.start()
+        get("/cam.mjpg").use { s ->
+            val input = s.getInputStream()
+            val header = readHeader(input)
+            assertTrue(header, header.startsWith("HTTP/1.0 200 OK\r\n"))
+            assertTrue(header, "multipart/x-mixed-replace; boundary=cablecamframe" in header)
+            waitFor("client registered") { events.clients == 1 }
+            assertEquals("no keyframe request for MJPEG", 0, events.keyRequests.get())
+
+            server.broadcastJpeg(Frame(byteArrayOf(1, 2, 3, 4, 5), 0, true))
+            val part = readFully(input, ("--cablecamframe\r\nContent-Type: image/jpeg\r\nContent-Length: 5\r\n\r\n").length + 5 + 2)
+            val text = part.decodeToString(0, part.size - 7)
+            assertTrue(text, text.startsWith("--cablecamframe\r\nContent-Type: image/jpeg\r\nContent-Length: 5\r\n\r\n"))
+            assertEquals(listOf<Byte>(1, 2, 3, 4, 5), part.copyOfRange(part.size - 7, part.size - 2).toList())
+            assertEquals("\r\n", part.decodeToString(part.size - 2))
+
+            // Never reading: 300 pictures go by. Only the socket buffers and one newest picture are ever held.
+            repeat(300) { server.broadcastJpeg(Frame(ByteArray(50_000) { 9 }, 0, true)) }
+            server.broadcastJpeg(Frame(ByteArray(7) { 77 }, 0, true))
+            var last = ByteArray(0)
+            waitFor("newest picture arrives") {
+                val buf = ByteArray(65536)
+                s.soTimeout = 300
+                val n = runCatching { input.read(buf) }.getOrDefault(-1)
+                if (n > 0) last = (last + buf.copyOf(n)).takeLast(64).toByteArray()
+                last.size >= 9 && last.takeLast(9).take(7).all { it == 77.toByte() }
+            }
+        }
+    }
 }

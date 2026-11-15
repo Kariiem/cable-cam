@@ -34,17 +34,18 @@ class StreamServer(
     }
 
     /** [local] is the phone-side address of the connection: it tells which link the client uses. */
-    data class ClientInfo(val remote: InetAddress, val local: InetAddress)
+    data class ClientInfo(val remote: InetAddress, val local: InetAddress, val mjpeg: Boolean = false)
 
     val bytesSent = AtomicLong()
     val framesDropped = AtomicLong()
 
     private var serverSocket: ServerSocket? = null
     private val clients = CopyOnWriteArrayList<Client>()
+    private val jpegClients = CopyOnWriteArrayList<JpegClient>()
     private val connections = CopyOnWriteArrayList<Socket>()
 
     val localPort: Int get() = serverSocket?.localPort ?: -1
-    val clientCount: Int get() = clients.size
+    val clientCount: Int get() = clients.size + jpegClients.size
 
     @Synchronized
     @Throws(IOException::class)
@@ -66,7 +67,13 @@ class StreamServer(
     }
 
     /** Disconnects the stream clients (they reconnect); used when the video format changes. */
-    fun dropClients() = clients.forEach { runCatching { it.socket.close() } }
+    fun dropClients() {
+        clients.forEach { runCatching { it.socket.close() } }
+        jpegClients.forEach { runCatching { it.socket.close() } }
+    }
+
+    /** One JPEG picture to every MJPEG client. A client that is behind gets only the newest picture. */
+    fun broadcastJpeg(frame: Frame) { for (c in jpegClients) c.offer(frame) }
 
     fun broadcast(frame: Frame) {
         for (c in clients) if (c.offer(frame)) listener.onNeedKeyframe()
@@ -99,13 +106,14 @@ class StreamServer(
             parts == null || parts.size < 3 || parts[0] != "GET" || path == null ->
                 respond(out, "400 Bad Request", "Bad request.\n")
             path == STREAM_PATH -> stream(s, out)
+            path == MJPEG_PATH -> streamMjpeg(s, out)
             path == "/" -> {
                 val host = request.lineSequence().firstOrNull { it.startsWith("Host:", ignoreCase = true) }
                     ?.substringAfter(':')?.trim()?.takeIf { it.isNotEmpty() } ?: "<phone-ip>:$port"
                 respond(
                     out, "200 OK",
                     "Cable Cam is running.\n\nOBS Media Source input:\n  http://$host$STREAM_PATH\n\n" +
-                        "Clients connected: ${clients.size}\n${status()}\n"
+                        "Clients connected: ${clientCount}\n${status()}\n"
                 )
             }
             else -> respond(out, "404 Not Found", "Not found. The stream is at $STREAM_PATH\n")
@@ -146,8 +154,43 @@ class StreamServer(
 
     /** Under a lock, so that concurrent joins and leaves are reported in order (the last report is current). */
     private fun notifyClients() = synchronized(clients) {
-        listener.onClientsChanged(clients.map { ClientInfo(it.socket.inetAddress, it.socket.localAddress) })
+        listener.onClientsChanged(
+            clients.map { ClientInfo(it.socket.inetAddress, it.socket.localAddress) } +
+                jpegClients.map { ClientInfo(it.socket.inetAddress, it.socket.localAddress, mjpeg = true) }
+        )
     }
+
+    /**
+     * Motion JPEG: every picture stands alone (no keyframes, nothing to probe), and a slow client skips straight
+     * to the newest picture, so delay cannot build up. It costs several times the bandwidth of H.264.
+     */
+    private fun streamMjpeg(s: Socket, out: OutputStream) {
+        s.sendBufferSize = SEND_BUFFER
+        runCatching { s.trafficClass = TRAFFIC_CLASS }
+        s.soTimeout = 0
+        out.write(
+            ("HTTP/1.0 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=$BOUNDARY\r\n" +
+                "Cache-Control: no-cache, no-store\r\nConnection: close\r\n\r\n").toByteArray()
+        )
+        out.flush()
+        val client = JpegClient(s)
+        jpegClients += client
+        notifyClients()
+        try {
+            while (true) {
+                val f = client.take(KEEPALIVE_MS) ?: continue      // nothing new: just wait (a closed socket fails on the next write)
+                out.write("--$BOUNDARY\r\nContent-Type: image/jpeg\r\nContent-Length: ${f.data.size}\r\n\r\n".toByteArray())
+                out.write(f.data)
+                out.write("\r\n".toByteArray())
+                out.flush()
+                bytesSent.addAndGet(f.data.size + 100L)
+            }
+        } finally {
+            jpegClients -= client
+            notifyClients()
+        }
+    }
+
 
     private fun respond(out: OutputStream, code: String, text: String) {
         val body = text.toByteArray()
@@ -172,6 +215,19 @@ class StreamServer(
             ) return String(buf, 0, n, Charsets.ISO_8859_1)
         }
         return null
+    }
+
+    /** A one-slot mailbox: the writer always sends the newest picture; older unsent ones are replaced. */
+    private inner class JpegClient(val socket: Socket) {
+        private var pending: Frame? = null
+        private val lock = Object()
+
+        fun offer(f: Frame) = synchronized(lock) { pending = f; lock.notifyAll() }
+
+        fun take(timeoutMs: Long): Frame? = synchronized(lock) {
+            if (pending == null) lock.wait(timeoutMs)
+            pending.also { pending = null }
+        }
     }
 
     private inner class Client(val socket: Socket) {
@@ -211,6 +267,8 @@ class StreamServer(
     companion object {
         const val DEFAULT_PORT = 8765
         const val STREAM_PATH = "/cam.ts"
+        const val MJPEG_PATH = "/cam.mjpg"
+        private const val BOUNDARY = "cablecamframe"
         /**
          * About one second of video. Wi-Fi stalls of a few hundred ms are normal and are absorbed here without
          * losing a frame (the backlog is sent at link speed afterwards); only a longer stall drops frames,
