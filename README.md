@@ -15,7 +15,7 @@ The screen has a status card with the preview and Start/Stop, a Connect card wit
 ## OBS
 1. Sources > **+** > **Media Source**; uncheck **Local File**.
 2. **Input:** the address from the app. **Input Format:** empty.
-3. **Network Buffering** 0 MB, **Reconnect Delay** 1 s, hardware decoding on, "Restart playback when source becomes active" off. If your OBS has an FFmpeg Options field: `fflags=nobuffer flags=low_delay`.
+3. **Network Buffering** 0 MB (OBS's default of 2 MB adds about 2 seconds of delay at 6 Mbit/s), **Reconnect Delay** 1 s, hardware decoding on, "Restart playback when source becomes active" off. If your OBS has an FFmpeg Options field: `fflags=nobuffer flags=low_delay`.
 4. For meetings: **Start Virtual Camera**, then choose "OBS Virtual Camera" in the meeting app.
 
 Open the address without `/cam.ts` in a browser to check that the PC can reach the phone.

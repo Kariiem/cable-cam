@@ -117,8 +117,23 @@ class VideoEncoder(
         }
     }
 
+    private var latencyFrames = 0
+    private var latencySumMs = 0L
+    private var latencyMaxMs = 0L
+
+    /** Camera timestamp to encoded output: what the phone itself adds (GL pass + encoder). Logged once a second. */
+    private fun measureLatency(ptsUs: Long) {
+        val ms = (android.os.SystemClock.elapsedRealtimeNanos() / 1000 - ptsUs) / 1000
+        latencySumMs += ms; latencyFrames++; if (ms > latencyMaxMs) latencyMaxMs = ms
+        if (latencyFrames >= fps) {
+            Log.i(TAG, "phone-side latency: avg ${latencySumMs / latencyFrames} ms, max $latencyMaxMs ms")
+            latencyFrames = 0; latencySumMs = 0; latencyMaxMs = 0
+        }
+    }
+
     private fun handle(data: ByteArray, info: MediaCodec.BufferInfo) {
         if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) { config = data; return }
+        measureLatency(info.presentationTimeUs)
         if (baseUs < 0) baseUs = info.presentationTimeUs
         val key = info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0
         val cfg = config

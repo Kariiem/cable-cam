@@ -29,7 +29,7 @@ object Guide {
         "In OBS:\n" +
             "1. Sources > + > Media Source. Uncheck \"Local File\".\n" +
             "2. Input: the address from this app, like http://192.168.42.129:8765/cam.ts. Input Format: leave empty.\n" +
-            "3. Network Buffering: 0 MB. Reconnect Delay: 1 s. Hardware decoding: on. " +
+            "3. Network Buffering: 0 MB (the default is 2 MB, which adds about 2 seconds of delay). Reconnect Delay: 1 s. Hardware decoding: on. " +
             "\"Restart playback when source becomes active\": off. If your OBS has an FFmpeg Options field, " +
             "try: fflags=nobuffer flags=low_delay\n" +
             "4. For Teams, Zoom or Meet: Start Virtual Camera in OBS, then pick \"OBS Virtual Camera\" in the app.\n\n" +

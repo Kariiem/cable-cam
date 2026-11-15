@@ -55,6 +55,7 @@ class MainActivity : Activity() {
 
     private lateinit var surface: SurfaceView
     private lateinit var liveBadge: TextView
+    private lateinit var cameraOff: TextView
     private lateinit var modeSeg: Segmented
     private lateinit var statusDot: View
     private lateinit var statusLabel: TextView
@@ -148,9 +149,11 @@ class MainActivity : Activity() {
         liveBadge = label("PREVIEW", 11f, Color.WHITE, bold = true).apply {
             background = rounded(0x99000000.toInt(), 8); setPadding(dp(8), dp(3), dp(8), dp(3))
         }
+        cameraOff = label("Camera off", 13f, 0xFF8A8F9C.toInt())
         val previewBox = FrameLayout(this).apply {
             background = rounded(Color.BLACK, 14)
             addView(surface, FrameLayout.LayoutParams(-1, -1))
+            addView(cameraOff, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
             addView(liveBadge, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { setMargins(dp(8), dp(8), 0, 0) })
         }
         heroRow.addView(previewBox, lp(dp(132), dp(234)).apply { rightMargin = dp(14) })
@@ -286,6 +289,9 @@ class MainActivity : Activity() {
                 "\n${s.clients.size} viewer${if (s.clients.size == 1) "" else "s"}"
             else -> "The camera is on; video is encoded when OBS connects."
         }
+        // A stopped stream shows no stale last frame: the surface is hidden, so the black panel shows.
+        surface.visibility = if (s.running) View.VISIBLE else View.INVISIBLE
+        cameraOff.visibility = if (s.running) View.GONE else View.VISIBLE
         startButton.text = if (s.running) "Stop" else "Start"
         startButton.background = if (s.running) pressable(col(R.color.warn_container), 14) else pressable(col(R.color.accent), 14)
         startButton.setTextColor(col(if (s.running) R.color.warn else R.color.on_accent))
