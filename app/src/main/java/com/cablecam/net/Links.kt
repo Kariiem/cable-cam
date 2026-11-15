@@ -60,6 +60,20 @@ object Links {
     fun kindOf(local: InetAddress, links: List<Link>): LinkKind? =
         if (local.isLoopbackAddress) LinkKind.USB else links.firstOrNull { it.ip == local.hostAddress }?.kind
 
+    /**
+     * A warning for a Wi-Fi link that cannot carry the video smoothly, or null. 2.4 GHz is shared with
+     * everything else in the house and is half-duplex; the stream crosses the radio twice (phone to router
+     * to PC), so it needs the 5 GHz band.
+     */
+    fun wifiAdvice(frequencyMhz: Int, linkMbps: Int): String? = when {
+        frequencyMhz in 2400..2500 ->
+            "The phone is on 2.4 GHz Wi-Fi ($linkMbps Mbit/s). It is crowded and slow, so video arrives in bursts. " +
+                "Connect the phone and the PC to the router's 5 GHz network, or use the USB cable."
+        frequencyMhz > 0 && linkMbps in 1..150 ->
+            "The phone's Wi-Fi link is slow ($linkMbps Mbit/s). Move closer to the router, or use the USB cable."
+        else -> null
+    }
+
     /** Whether a VPN tunnel is up right now. */
     fun vpnActive(): Boolean = runCatching {
         NetworkInterface.getNetworkInterfaces().toList().any { it.isUp && isVpn(it.name) }

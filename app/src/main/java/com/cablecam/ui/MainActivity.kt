@@ -12,6 +12,7 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Outline
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -47,6 +48,7 @@ class MainActivity : Activity() {
     private var status = StreamService.Status()
     private var links: List<Link> = emptyList()
     private var vpn = false
+    private var wifiAdvice: String? = null
     private var torchOn = false
     private var showAdb = false
     private var urlKey = ""
@@ -71,6 +73,8 @@ class MainActivity : Activity() {
     private lateinit var segSize: Segmented
     private lateinit var segFps: Segmented
     private lateinit var bitrateValue: TextView
+    private lateinit var advice: TextView
+    private lateinit var recommendButton: TextView
     private lateinit var swStabilise: Switch
     private lateinit var swTorch: Switch
     private lateinit var dimOverlay: View
@@ -198,9 +202,7 @@ class MainActivity : Activity() {
         cam.addView(settingRow("Lens", segCamera))
         segSize = Segmented(this, Presets.HEIGHTS.map { "${it}p" }) { settings.height = Presets.HEIGHTS[it]; changed() }
         cam.addView(settingRow("Size", segSize))
-        segFps = Segmented(this, Presets.FPS.map { "$it" }) {
-            settings.fps = Presets.FPS[it]; if (settings.fps > 30) settings.height = 720; changed()
-        }
+        segFps = Segmented(this, Presets.FPS.map { "$it" }) { settings.fps = Presets.FPS[it]; changed() }
         cam.addView(settingRow("Frame rate", segFps))
         bitrateValue = label("", 14f, col(R.color.accent), bold = true).apply {
             setPadding(dp(14), dp(10), dp(14), dp(10)); background = pressable(col(R.color.field), 12)
@@ -211,7 +213,12 @@ class MainActivity : Activity() {
         cam.addView(settingRow("Stabilisation", swStabilise))
         swTorch = Switch(this)
         cam.addView(settingRow("Torch", swTorch))
-        cam.addView(label("60 fps needs 720p. 1080p is 30 fps.", 12f, col(R.color.text_dim)), lp().apply { topMargin = dp(6) })
+        advice = label("", 13f, col(R.color.text_dim))
+        cam.addView(advice, lp().apply { topMargin = dp(12) })
+        recommendButton = tonalButton("Use recommended (720p, 30 fps, automatic)") {
+            settings.height = Presets.RECOMMENDED_HEIGHT; settings.fps = Presets.RECOMMENDED_FPS; settings.bitrateKbps = 0; changed()
+        }
+        cam.addView(recommendButton, lp().apply { topMargin = dp(8) })
         page.addView(cam, lp().apply { topMargin = dp(12) })
 
         // Footer actions.
@@ -262,7 +269,16 @@ class MainActivity : Activity() {
     private fun refreshLinks() {
         val now = Links.current()
         val v = Links.vpnActive()
-        if (now != links || v != vpn) { links = now; vpn = v; refresh() }
+        val advice = wifiAdviceNow(now)
+        if (now != links || v != vpn || advice != wifiAdvice) { links = now; vpn = v; wifiAdvice = advice; refresh() }
+    }
+
+    /** Only when the phone's own Wi-Fi is the link in use (not USB tethering). */
+    @Suppress("DEPRECATION")
+    private fun wifiAdviceNow(current: List<Link>): String? {
+        if (current.none { it.kind == LinkKind.WIFI }) return null
+        val info = (applicationContext.getSystemService(WIFI_SERVICE) as WifiManager).connectionInfo ?: return null
+        return Links.wifiAdvice(info.frequency, info.linkSpeed)
     }
 
     private fun shownLinks(): List<Link> =
@@ -303,6 +319,7 @@ class MainActivity : Activity() {
         // Banners.
         bannerBox.removeAllViews()
         s.error?.let { bannerBox.addView(banner(it, col(R.color.warn_container), col(R.color.warn))) }
+        if (settings.mode == Mode.WIRELESS) wifiAdvice?.let { bannerBox.addView(banner(it, col(R.color.amber_container), col(R.color.amber))) }
         if (vpn) bannerBox.addView(banner("A VPN is active on the phone (for example a DNS or ad blocker). It can block connections " +
             "from the PC: pause it if OBS cannot connect.", col(R.color.amber_container), col(R.color.amber)))
         if (s.thermal >= 3) bannerBox.addView(banner("The phone is hot: quality is reduced.", col(R.color.amber_container), col(R.color.amber)))
@@ -337,6 +354,10 @@ class MainActivity : Activity() {
         segSize.selected = Presets.HEIGHTS.indexOf(settings.height)
         segFps.selected = Presets.FPS.indexOf(settings.fps)
         bitrateValue.text = if (settings.bitrateKbps == 0) "Automatic" else "${settings.bitrateKbps / 1000f} Mbit/s".replace(".0 ", " ")
+        val recommended = settings.height == Presets.RECOMMENDED_HEIGHT && settings.fps == Presets.RECOMMENDED_FPS && settings.bitrateKbps == 0
+        advice.text = Presets.advice(settings.height, settings.fps, settings.bitrateKbps)
+        advice.setTextColor(col(if (settings.height >= 1080 && settings.fps >= 60) R.color.amber else R.color.text_dim))
+        recommendButton.visibility = if (recommended) View.GONE else View.VISIBLE
         bind(swStabilise, settings.stabilise) { settings.stabilise = it; changed() }
         bind(swTorch, torchOn) { torchOn = it; service?.setTorch(it) }
     }
@@ -384,7 +405,7 @@ class MainActivity : Activity() {
 
     private fun showGuide() {
         val body = Guide.connect(settings.mode) + "\n\n" + (if (settings.mode == Mode.CABLE) Guide.adbAlternative + "\n\n" else "") +
-            Guide.obs + "\n\n" + Guide.vpn + "\n\n" + Guide.keepAlive
+            Guide.obs + "\n\n" + Guide.wifi + "\n\n" + Guide.vpn + "\n\n" + Guide.keepAlive
         AlertDialog.Builder(this).setTitle("Setup guide").setMessage(body).setPositiveButton("Close", null).show()
     }
 

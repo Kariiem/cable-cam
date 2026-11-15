@@ -3,6 +3,7 @@ package com.cablecam.settings
 import com.cablecam.net.LinkKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PresetsTest {
@@ -10,8 +11,12 @@ class PresetsTest {
         assertEquals(1280, Presets.longSide(720)); assertEquals(1920, Presets.longSide(1080))
     }
 
-    @Test fun sixtyFpsOnly720p() {
-        assertEquals(60, Presets.fpsFor(720, 60)); assertEquals(30, Presets.fpsFor(1080, 60)); assertEquals(30, Presets.fpsFor(1080, 30))
+    @Test fun adviceDescribesTheCombination() {
+        assertEquals("Recommended: smooth and light, about 4 Mbit/s.", Presets.advice(720, 30, 0))
+        assertTrue(Presets.advice(1080, 60, 0).startsWith("Heavy: about 12 Mbit/s"))
+        assertTrue(Presets.advice(1080, 30, 0).startsWith("Sharper but about 8 Mbit/s"))
+        assertTrue(Presets.advice(720, 60, 0).startsWith("Smoother motion at about 6 Mbit/s"))
+        assertTrue("manual bitrate", Presets.advice(720, 30, 2000).startsWith("About 2 Mbit/s"))
     }
 
     @Test fun automaticBitrateByLink() {

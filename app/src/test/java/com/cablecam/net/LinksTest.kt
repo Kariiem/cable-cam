@@ -61,6 +61,13 @@ class LinksTest {
         for (n in listOf("wlan0", "rndis0", "ccmni1", "lo", "bt-pan")) assertFalse(n, Links.isVpn(n))
     }
 
+    @Test fun wifiAdvice() {
+        assertTrue(Links.wifiAdvice(2437, 72)!!.startsWith("The phone is on 2.4 GHz Wi-Fi (72 Mbit/s)"))
+        assertTrue(Links.wifiAdvice(5180, 100)!!.startsWith("The phone's Wi-Fi link is slow (100 Mbit/s)"))
+        assertNull(Links.wifiAdvice(5180, 866))
+        assertNull("not connected", Links.wifiAdvice(0, 0))
+    }
+
     @Test fun adbStrings() {
         assertEquals("http://127.0.0.1:8765/cam.ts", Links.ADB_URL)
         assertEquals("adb forward tcp:8765 tcp:8765", Links.ADB_COMMAND)

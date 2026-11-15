@@ -31,9 +31,10 @@ USB tethering can stay on while the phone is on Wi-Fi; the app lists every addre
 
 ### If the picture lags
 1. In OBS set **Network Buffering** to 0 MB and add `probesize=32768 fflags=nobuffer flags=low_delay` to FFmpeg Options, then switch the source off and on.
-2. Use **720p, 30 fps**. 1080p doubles the data and the receiver's work.
-3. Prefer the **USB cable** mode: Wi-Fi from phone to router to PC crosses the radio twice and is bursty. Measured on a 72 Mbit/s PC Wi-Fi link: frames arrived with a median 26 ms and worst-case 357 ms of jitter after the app was tuned; before, bursts of 0.7-1.7 s were common.
-4. The app shows "phone delay" (camera to encoded frame, about 80-100 ms). Anything beyond that is the link or OBS.
+2. Use **720p, 30 fps** (the app's recommended setting). 1080p doubles the data and the receiver's work.
+3. Check the Wi-Fi band: the app warns when the phone is on **2.4 GHz** (about 72 Mbit/s). Put the phone and the PC on the router's **5 GHz** network. (On the user's phone and PC both were on 2.4 GHz, which explains the bursty delivery.)
+4. Prefer the **USB cable** mode: Wi-Fi from phone to router to PC crosses the radio twice and is bursty. Measured on a 72 Mbit/s PC Wi-Fi link: frames arrived with a median 26 ms and worst-case 357 ms of jitter after the app was tuned; before, bursts of 0.7-1.7 s were common.
+5. The app shows "phone delay" (camera to encoded frame, about 80-100 ms). Anything beyond that is the link or OBS.
 
 ## Details
 - Port 8765, `GET /cam.ts` (video/mp2t), `GET /` (status page). Only private-network and loopback peers are served.
@@ -41,7 +42,7 @@ USB tethering can stay on while the phone is on Wi-Fi; the app lists every addre
 - Automatic bitrate: 4 Mbit/s at 720p30 (8 at 1080p30, +50% at 60 fps), 1.2 Mbit/s over Bluetooth, reduced when the phone gets hot.
 - Nothing is dropped for stalls under about a second; the backlog is sent at link speed afterwards. A client more than about a second behind loses frames up to the next keyframe, so latency cannot build up without limit. Keyframes every 2 s (about 100 KB each), requested at most once a second.
 - The stream is portrait (720x1280 or 1080x1920), like the phone held upright: each frame is rotated on the GPU before encoding. The app is portrait-locked.
-- 60 fps is offered at 720p only; 1080p is 30 fps. A software-decoding PC struggles with 1080p60.
+- Every size and frame-rate combination is allowed (720p/1080p, 30/60 fps). Recommended for meetings: **720p, 30 fps, automatic bitrate** (about 4 Mbit/s). 720p60 (about 6 Mbit/s) gives smoother motion; 1080p30 (8) is sharper; 1080p60 (12) is heavy: use the USB cable and a PC that decodes in hardware. If the camera does not offer 60 fps at a size, it runs at the fastest rate it has.
 - Keep the screen on while streaming (**Dim screen** saves power). Exempt the app from battery optimisation if MagicOS kills it.
 
 ## Build

@@ -6,8 +6,23 @@ import com.cablecam.net.LinkKind
 object Presets {
     val HEIGHTS = listOf(720, 1080)
     val FPS = listOf(30, 60)
-    /** 60 fps is only offered at 720p: 1080p60 is too heavy for the link and for software decoding on the PC. */
-    fun fpsFor(size: Int, fps: Int) = if (size > 720) 30 else fps
+    const val RECOMMENDED_HEIGHT = 720
+    const val RECOMMENDED_FPS = 30
+
+    /** One line about the chosen combination: what it costs, or that it is the recommended one. */
+    fun advice(height: Int, fps: Int, manualKbps: Int): String {
+        val kbps = if (manualKbps > 0) manualKbps else autoKbps(null, height, fps)
+        val mbit = "%.0f".format(kbps / 1000f)
+        return when {
+            height == RECOMMENDED_HEIGHT && fps == RECOMMENDED_FPS && manualKbps == 0 ->
+                "Recommended: smooth and light, about $mbit Mbit/s."
+            height >= 1080 && fps >= 60 ->
+                "Heavy: about $mbit Mbit/s. Needs the USB cable (or very good Wi-Fi) and a PC that decodes in hardware."
+            height >= 1080 -> "Sharper but about $mbit Mbit/s; the PC and the link work twice as hard as at 720p."
+            fps >= 60 -> "Smoother motion at about $mbit Mbit/s."
+            else -> "About $mbit Mbit/s. Recommended for meetings: 720p, 30 fps, automatic bitrate."
+        }
+    }
     /** Manual bitrate choices in kbit/s; 0 means automatic (by link). */
     val BITRATES_KBPS = listOf(0, 800, 1200, 2000, 4000, 6000, 8000, 12000)
     const val BLUETOOTH_KBPS = 1200
