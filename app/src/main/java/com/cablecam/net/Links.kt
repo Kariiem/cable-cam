@@ -68,7 +68,7 @@ object Links {
     fun wifiAdvice(frequencyMhz: Int, linkMbps: Int): String? = when {
         frequencyMhz in 2400..2500 ->
             "The phone is on 2.4 GHz Wi-Fi ($linkMbps Mbit/s). It is crowded and slow, so video arrives in bursts. " +
-                "Connect the phone and the PC to the router's 5 GHz network, or use the USB cable."
+                "Use a 5 GHz network if your router has one (many ISP routers are 2.4 GHz only), or use the USB cable."
         frequencyMhz > 0 && linkMbps in 1..150 ->
             "The phone's Wi-Fi link is slow ($linkMbps Mbit/s). Move closer to the router, or use the USB cable."
         else -> null

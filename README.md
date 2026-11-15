@@ -32,7 +32,7 @@ USB tethering can stay on while the phone is on Wi-Fi; the app lists every addre
 ### If the picture lags
 1. In OBS set **Network Buffering** to 0 MB and add `probesize=32768 fflags=nobuffer flags=low_delay` to FFmpeg Options, then switch the source off and on.
 2. Use **720p, 30 fps** (the app's recommended setting). 1080p doubles the data and the receiver's work.
-3. Check the Wi-Fi band: the app warns when the phone is on **2.4 GHz** (about 72 Mbit/s). Put the phone and the PC on the router's **5 GHz** network. (On the user's phone and PC both were on 2.4 GHz, which explains the bursty delivery.)
+3. Check the Wi-Fi band: the app warns when the phone is on **2.4 GHz** (about 72 Mbit/s). Put the phone and the PC on the router's **5 GHz** network. Many ISP routers are 2.4 GHz only (the ZTE H168N is: it has one 2.4 GHz radio, so there is no 5 GHz setting to switch on); then use the **USB cable** mode, or add a dual-band access point to the router.
 4. Prefer the **USB cable** mode: Wi-Fi from phone to router to PC crosses the radio twice and is bursty. Measured on a 72 Mbit/s PC Wi-Fi link: frames arrived with a median 26 ms and worst-case 357 ms of jitter after the app was tuned; before, bursts of 0.7-1.7 s were common.
 5. The app shows "phone delay" (camera to encoded frame, about 80-100 ms). Anything beyond that is the link or OBS.
 

@@ -41,7 +41,8 @@ object Guide {
             "Pause it while streaming. Verified on the HONOR X9c: the stream was unreachable from the PC until the VPN was stopped."
 
     val wifi =
-        "Use the router's 5 GHz network on both the phone and the PC (often a separate name, for example ending in 5G). " +
+        "If your router has a 5 GHz network, use it on both the phone and the PC (often a separate name, for example ending in 5G). " +
+            "Many ISP routers are 2.4 GHz only (the ZTE H168N is), and then the USB cable is the way to get a smooth picture. " +
             "On 2.4 GHz (about 72 Mbit/s here) the video crosses a crowded radio twice and arrives in bursts: " +
             "measured median jitter 26 ms and worst case 357 ms, with stalls up to 1.7 s before tuning. The USB cable avoids Wi-Fi altogether.\n" +
             "The app warns when the phone is on 2.4 GHz."
