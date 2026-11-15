@@ -65,7 +65,8 @@ class StreamService : Service() {
     private var clients: List<StreamServer.ClientInfo> = emptyList()
     private var error: String? = null
     private var running = false
-    private var frames = 0
+    private var frames = 0          // H.264 pictures this second
+    private var jpegFrames = 0      // JPEG pictures this second
     private var lastBytes = 0L
     private var fpsNow = 0f
     private var kbpsNow = 0
@@ -206,7 +207,7 @@ class StreamService : Service() {
         val fps = settings.fps
         val j = MjpegEncoder(
             size, Presets.longSide(size), fps, JPEG_QUALITY,
-            onFrame = { f: Frame -> frames++; server?.broadcastJpeg(f) },
+            onFrame = { f: Frame -> jpegFrames++; server?.broadcastJpeg(f) },
             onError = { ex -> main.post { error = "JPEG encoder stopped: ${ex.message}"; stopJpeg(); server?.dropClients(); publish() } },
         )
         var r: FrameRotator? = null
@@ -300,7 +301,7 @@ class StreamService : Service() {
             if (!running) return
             val sent = server?.bytesSent?.get() ?: 0L
             kbpsNow = ((sent - lastBytes) * 8 / 1000).toInt(); lastBytes = sent
-            fpsNow = frames.toFloat(); frames = 0
+            fpsNow = maxOf(frames, jpegFrames).toFloat(); frames = 0; jpegFrames = 0   // two viewers on two formats must not add up
             val dropped = server?.framesDropped?.get() ?: 0L
             dropHistory.addLast(dropped - lastDropped); lastDropped = dropped
             while (dropHistory.size > 10) dropHistory.removeFirst()

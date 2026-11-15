@@ -36,6 +36,20 @@ USB tethering can stay on while the phone is on Wi-Fi; the app lists every addre
 4. Prefer the **USB cable** mode: Wi-Fi from phone to router to PC crosses the radio twice and is bursty. Measured on a 72 Mbit/s PC Wi-Fi link: frames arrived with a median 26 ms and worst-case 357 ms of jitter after the app was tuned; before, bursts of 0.7-1.7 s were common.
 5. The app shows "phone delay" (camera to encoded frame, about 80-100 ms). Anything beyond that is the link or OBS.
 
+## MJPEG (experimental, branch `droid-cam`)
+Each link also has `/cam.mjpg`: Motion JPEG, where every picture is a standalone JPEG. There are no keyframes, nothing for the receiver to probe, and a slow client is always sent the newest picture, so delay cannot pile up. It uses more bandwidth (about 9 Mbit/s at 720p30 here, against 4 for H.264). In OBS: Media Source, Input `http://<ip>:8765/cam.mjpg`, Network Buffering 0 MB, FFmpeg Options `fflags=nobuffer flags=low_delay`.
+
+Measured with a probe client, 720p30, 20 s each (this phone and PC):
+
+| Link | Format | Result |
+| --- | --- | --- |
+| Wi-Fi 2.4 GHz | H.264 | arrival jitter p95 345 ms, 12 stalls over 100 ms, largest 1062 ms |
+| Wi-Fi 2.4 GHz | MJPEG | 29.4 fps, gaps p95 66 ms, max 103 ms, 1 stall over 100 ms |
+| USB tethering | H.264 | arrival jitter p95 9 ms, max 14 ms |
+| USB tethering | MJPEG | 30.0 fps, gaps p95 36 ms, max 55 ms, no stall |
+
+Time to the first picture in ffmpeg: H.264 with the old OBS options 6.2 s (2.2 s with `probesize=32768`); MJPEG 0.16 s with just `fflags=nobuffer`.
+
 ## Details
 - Port 8765, `GET /cam.ts` (video/mp2t), `GET /` (status page). Only private-network and loopback peers are served.
 - H.264 High, no B-frames, keyframe every second, MPEG-TS with PCR. Encoding runs only while a client is connected. No audio.
