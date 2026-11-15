@@ -1,7 +1,7 @@
 # Cable Cam
 
 [![CI](https://github.com/Kariiem/cable-cam/actions/workflows/ci.yml/badge.svg)](https://github.com/Kariiem/cable-cam/actions/workflows/ci.yml)
-[![License: MIT or Unlicense](https://img.shields.io/badge/license-MIT%20%7C%20Unlicense-blue.svg)](COPYING)
+[![License: MIT or CC0](https://img.shields.io/badge/license-MIT%20%7C%20CC0-blue.svg)](COPYING)
 
 **Use your Android phone as a camera source in OBS. No watermark, nothing to install on the PC except OBS.**
 
@@ -355,6 +355,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Open an issue before large changes; smal
 
 ## License
 
-Dual-licensed: you may use Cable Cam under **either** the [MIT License](LICENSE-MIT) **or** the [Unlicense](UNLICENSE) (a public-domain dedication), at your option. See [COPYING](COPYING).
+Dual-licensed: you may use Cable Cam under **either** the [MIT License](LICENSE-MIT) **or** [CC0 1.0 Universal](LICENSE-CC0) (a public-domain dedication), at your option. See [COPYING](COPYING).
 
-`SPDX-License-Identifier: MIT OR Unlicense`
+`SPDX-License-Identifier: MIT OR CC0-1.0`

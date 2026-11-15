@@ -11,4 +11,4 @@ Ground rules:
 - **Keep the docs in step.** A change to a URL, the port, a format or a default must update `README.md`, `PLAN.md` and the in-app guide (`ui/Guide.kt`) in the same pull request.
 - **Small commits** that each build and pass the tests.
 
-By contributing you agree that your work may be used under either license of the project (MIT or the Unlicense; see `COPYING`).
+By contributing you agree that your work may be used under either license of the project (MIT or CC0 1.0, a public-domain dedication; see `COPYING`).
