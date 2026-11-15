@@ -7,7 +7,7 @@ Two modes: **Cable (USB)** = USB tethering (fallback: `adb forward tcp:8765 tcp:
 - Docs: `PLAN.md` (design, OBS setup, phases, status table, risks). Keep it updated when the design or status changes. `README.md` has the user steps.
 
 ## Status (2026-11-15)
-All phases are implemented and unit-tested; the app runs on the phone and the stream decodes with ffprobe through `adb forward`. Not yet confirmed by the user: USB tethering, Bluetooth PAN, OBS Media Source, Virtual Camera, latency. Open issue: TCP 8765 from the LAN (WSL) timed out although ping works (see PLAN.md status table). See PLAN.md for details.
+All phases are implemented and unit-tested; the app runs on the phone and the stream decodes with ffprobe through `adb forward`. Not yet confirmed by the user: USB tethering, Bluetooth PAN, OBS Media Source, Virtual Camera, latency. Over Wi-Fi the stream decodes from WSL, but only with the phone's VPN (RethinkDNS) stopped; with it on, inbound TCP times out (the app warns about VPNs). See PLAN.md for details.
 
 ## Layout
 - `app/`: package `com.cablecam`; `ui/` (MainActivity, Guide, `CrashReport.kt`), `camera/CameraController.kt`, `stream/` (VideoEncoder, TsMuxer, StreamServer, Access), `net/Links.kt`, `settings/` (Settings, Presets), `service/StreamService.kt`

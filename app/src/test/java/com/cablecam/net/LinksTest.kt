@@ -56,6 +56,11 @@ class LinksTest {
         assertNull(Links.kindOf(InetAddress.getByName("192.168.9.9"), links))
     }
 
+    @Test fun vpnInterfaces() {
+        for (n in listOf("tun0", "tun1", "ppp0", "wg0")) assertTrue(n, Links.isVpn(n))
+        for (n in listOf("wlan0", "rndis0", "ccmni1", "lo", "bt-pan")) assertFalse(n, Links.isVpn(n))
+    }
+
     @Test fun adbStrings() {
         assertEquals("http://127.0.0.1:8765/cam.ts", Links.ADB_URL)
         assertEquals("adb forward tcp:8765 tcp:8765", Links.ADB_COMMAND)

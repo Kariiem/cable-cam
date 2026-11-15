@@ -35,6 +35,11 @@ object Guide {
             "You can check the address in a browser first: it shows a status page.\n" +
             "Nothing is installed on the PC and no firewall rule is needed: OBS connects to the phone."
 
+    val vpn =
+        "If OBS cannot connect although the phone and PC are on the same network, check for a VPN on the phone " +
+            "(DNS or ad blockers such as RethinkDNS run as one): while it is on, connections from the PC are blocked. " +
+            "Pause it while streaming. Verified on the HONOR X9c: the stream was unreachable from the PC until the VPN was stopped."
+
     val keepAlive =
         "The phone keeps the screen on while streaming; use Dim screen to save power. " +
             "If the stream stops when the screen is off or the app is in the background, exempt Cable Cam from " +

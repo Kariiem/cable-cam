@@ -46,6 +46,8 @@ class MainActivity : Activity() {
     private var status = StreamService.Status()
     private var links: List<Link> = emptyList()
     private var torchOn = false
+    private var vpn = false
+    private var showAdb = false
     private val main = Handler(Looper.getMainLooper())
 
     private lateinit var surface: SurfaceView
@@ -165,6 +167,7 @@ class MainActivity : Activity() {
         col.addView(settingsButtons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
 
         val row = LinearLayout(this)
+        row.addView(button("adb address") { showAdb = !showAdb; refresh() }, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(button("OBS guide") { showGuide() }, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(button("Dim screen") { dim(true) }, LinearLayout.LayoutParams(0, -2, 1f))
         col.addView(row)
@@ -201,7 +204,8 @@ class MainActivity : Activity() {
 
     private fun refreshLinks() {
         val now = Links.current()
-        if (now != links) { links = now; refresh() }
+        val v = Links.vpnActive()
+        if (now != links || v != vpn) { links = now; vpn = v; refresh() }
     }
 
     /** Which links to show: the mode's own, or all of them if that mode has none yet. */
@@ -220,8 +224,11 @@ class MainActivity : Activity() {
         urlList.removeAllViews()
         val shown = shownLinks()
         for (l in shown) urlList.addView(urlRow("${l.kind.label}  ${l.iface}", l.url))
-        if (mode == Mode.CABLE) urlList.addView(urlRow("adb forward (alternative)", Links.ADB_URL, small = true))
-        hint.text = when {
+        if (mode == Mode.CABLE && (showAdb || shown.isEmpty()))
+            urlList.addView(urlRow("Only on a PC running \"${Links.ADB_COMMAND}\"", Links.ADB_URL, small = true))
+        val vpnWarning = if (vpn) "A VPN is active on the phone (for example a DNS or ad blocker). It can block connections " +
+            "from the PC: pause it if OBS cannot connect.\n" else ""
+        hint.text = vpnWarning + when {
             shown.isNotEmpty() -> if (mode == Mode.WIRELESS && shown.any { it.kind == LinkKind.BLUETOOTH })
                 "Bluetooth link: the bitrate is lowered automatically." else ""
             mode == Mode.CABLE -> "No USB network yet: plug in the cable and turn on USB tethering (see OBS guide)."
@@ -294,7 +301,7 @@ class MainActivity : Activity() {
 
     private fun showGuide() {
         val body = Guide.connect(settings.mode) + "\n\n" + (if (settings.mode == Mode.CABLE) Guide.adbAlternative + "\n\n" else "") +
-            Guide.obs + "\n\n" + Guide.keepAlive
+            Guide.obs + "\n\n" + Guide.vpn + "\n\n" + Guide.keepAlive
         AlertDialog.Builder(this).setTitle("Setup guide").setMessage(body).setPositiveButton("Close", null).show()
     }
 

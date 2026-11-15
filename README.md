@@ -21,6 +21,9 @@ Open the address without `/cam.ts` in a browser to check that the PC can reach t
 ### If USB tethering is not available
 With adb on the PC and USB debugging on: `adb forward tcp:8765 tcp:8765`, then use `http://127.0.0.1:8765/cam.ts`.
 
+### If OBS or the browser cannot connect
+A VPN on the phone (including DNS/ad blockers such as RethinkDNS) blocks connections from the PC. Pause it while streaming: on the HONOR X9c the stream was unreachable from the PC until the VPN was stopped. The app warns when a VPN is active.
+
 ## Details
 - Port 8765, `GET /cam.ts` (video/mp2t), `GET /` (status page). Only private-network and loopback peers are served.
 - H.264 High, no B-frames, keyframe every second, MPEG-TS with PCR. Encoding runs only while a client is connected. No audio.

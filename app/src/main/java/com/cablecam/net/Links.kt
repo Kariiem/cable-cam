@@ -46,6 +46,9 @@ object Links {
             ips.filter(::isPrivate).map { Link(kind, name, it) }
         }.sortedWith(compareBy({ it.kind }, { it.iface }, { it.ip }))
 
+    /** True if an interface name is a VPN tunnel. An active VPN (ad blockers, DNS filters) can block connections coming in from the PC. */
+    fun isVpn(iface: String): Boolean = iface.lowercase().let { it.startsWith("tun") || it.startsWith("ppp") || it.startsWith("wg") }
+
     fun isPrivate(ip: String): Boolean {
         val p = ip.split('.').map { it.toIntOrNull() ?: return false }
         if (p.size != 4 || p.any { it !in 0..255 }) return false
@@ -56,6 +59,11 @@ object Links {
     /** The link a client came in on, from the phone-side address of its connection. Loopback is adb forward. */
     fun kindOf(local: InetAddress, links: List<Link>): LinkKind? =
         if (local.isLoopbackAddress) LinkKind.USB else links.firstOrNull { it.ip == local.hostAddress }?.kind
+
+    /** Whether a VPN tunnel is up right now. */
+    fun vpnActive(): Boolean = runCatching {
+        NetworkInterface.getNetworkInterfaces().toList().any { it.isUp && isVpn(it.name) }
+    }.getOrDefault(false)
 
     /** The links that exist right now. */
     fun current(): List<Link> = runCatching {

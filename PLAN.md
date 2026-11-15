@@ -66,7 +66,7 @@ Legend: **verified** = confirmed by the user on real hardware; **built** = imple
 
 | Phase | State | Notes |
 | --- | --- | --- |
-| 0. Hardware spikes | **partly** | Stream over `adb forward` **verified by me, not by the user in OBS**: ffprobe from WSL decodes 1080p H.264 from the phone. From the LAN (192.168.1.3 to the phone's 192.168.1.2) ping works but TCP 8765 timed out; cause not found (the phone has a VPN `tun0`; router/MagicOS firewall untested). USB tethering, Bluetooth PAN, OBS and latency: **todo** |
+| 0. Hardware spikes | **partly** | Stream over `adb forward` **verified by me, not by the user in OBS**: ffprobe from WSL decodes 1080p H.264 from the phone. Over Wi-Fi from WSL (192.168.1.3 to 192.168.1.2) TCP 8765 timed out while RethinkDNS's VPN (`tun0`) was on, and worked (status page, ffprobe 1080p H.264) once the user stopped it. USB tethering, Bluetooth PAN, OBS and latency: **todo** |
 | 1. Skeleton | **built** | |
 | 2. Camera → encoder → TS → HTTP | **built** | unit tests incl. ffmpeg decode; camera + encoder + server run on the phone (screenshot, ffprobe via adb forward) |
 | 3. Cable mode | **built** | link detection, URL/copy, tethering shortcut, adb forward URL, dim overlay; tethering itself not tried |
@@ -110,6 +110,7 @@ OBS reconnects (reconnect delay), camera errors and disconnects, encoder restart
 AAC audio in the TS, portrait output, zoom/exposure controls, MJPEG endpoint for an OBS Browser Source (latency fallback), OBS scene-collection export.
 
 ## Risks / unknowns (test early)
+- **VPN on the phone blocks inbound connections** (seen with RethinkDNS on the user's phone). The app warns when a `tun*`/`ppp*`/`wg*` interface is up.
 - **USB tethering on the HONOR X9c:** interface name; subnet (Android 11+ randomises tethering subnets, so `192.168.42.x` is not guaranteed); whether it can be enabled without mobile data; whether the PC can reach the phone's port.
 - **Work PC:** a tethering network adapter may be blocked by policy or flagged by the security software (endpoint security software, which reports to an admin). Test there first; never try to evade it. adb forward is the fallback, and may also be unavailable there.
 - **Internet routed through the phone:** with mobile data on, Windows may send its traffic over the tethered link (metered). Mitigation: mobile data off while tethered, or document it. Changing interface metrics needs admin.
