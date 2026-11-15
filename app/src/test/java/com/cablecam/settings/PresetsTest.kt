@@ -15,18 +15,18 @@ class PresetsTest {
     }
 
     @Test fun automaticBitrateByLink() {
-        assertEquals(6000, Presets.autoKbps(LinkKind.USB, 720, 30))
-        assertEquals(6000, Presets.autoKbps(LinkKind.WIFI, 720, 30))
-        assertEquals(10_000, Presets.autoKbps(LinkKind.HOTSPOT, 1080, 30))
-        assertEquals(9000, Presets.autoKbps(null, 720, 60))
+        assertEquals(4000, Presets.autoKbps(LinkKind.USB, 720, 30))
+        assertEquals(4000, Presets.autoKbps(LinkKind.WIFI, 720, 30))
+        assertEquals(8000, Presets.autoKbps(LinkKind.HOTSPOT, 1080, 30))
+        assertEquals(6000, Presets.autoKbps(null, 720, 60))
         assertEquals(1200, Presets.autoKbps(LinkKind.BLUETOOTH, 1080, 60))
     }
 
     @Test fun encoderBitrate() {
-        assertEquals("no clients yet", 6000, Presets.bitrateKbps(0, emptyList(), 720, 30, 1.0))
+        assertEquals("no clients yet", 4000, Presets.bitrateKbps(0, emptyList(), 720, 30, 1.0))
         assertEquals("slowest link wins", 1200, Presets.bitrateKbps(0, listOf(LinkKind.WIFI, LinkKind.BLUETOOTH), 720, 30, 1.0))
         assertEquals("manual wins over the link", 4000, Presets.bitrateKbps(4000, listOf(LinkKind.BLUETOOTH), 720, 30, 1.0))
-        assertEquals("hot phone", 3600, Presets.bitrateKbps(0, listOf(LinkKind.USB), 720, 30, 0.6))
+        assertEquals("hot phone", 2400, Presets.bitrateKbps(0, listOf(LinkKind.USB), 720, 30, 0.6))
         assertEquals("floor", 300, Presets.bitrateKbps(800, emptyList(), 720, 30, 0.1))
     }
 

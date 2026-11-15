@@ -15,7 +15,7 @@ The screen has a status card with the preview and Start/Stop, a Connect card wit
 ## OBS
 1. Sources > **+** > **Media Source**; uncheck **Local File**.
 2. **Input:** the address from the app. **Input Format:** empty.
-3. **Network Buffering** 0 MB (OBS's default of 2 MB adds about 2 seconds of delay at 6 Mbit/s), **Reconnect Delay** 1 s, hardware decoding on, "Restart playback when source becomes active" off. If your OBS has an FFmpeg Options field: `fflags=nobuffer flags=low_delay`.
+3. **Network Buffering** 0 MB (OBS's default of 2 MB adds about 2 seconds of delay at 4 Mbit/s), **Reconnect Delay** 1 s, hardware decoding on, "Restart playback when source becomes active" off. **FFmpeg Options** (important for low delay): `probesize=32768 fflags=nobuffer flags=low_delay`. Without `probesize`, FFmpeg reads 5 MB (about 5 seconds of video) before it starts, and that stays as lag: measured here, 6.3 s to the first picture without it and 1.4 s with it.
 4. For meetings: **Start Virtual Camera**, then choose "OBS Virtual Camera" in the meeting app.
 
 Open the address without `/cam.ts` in a browser to check that the PC can reach the phone.
@@ -32,7 +32,7 @@ USB tethering can stay on while the phone is on Wi-Fi; the app lists every addre
 ## Details
 - Port 8765, `GET /cam.ts` (video/mp2t), `GET /` (status page). Only private-network and loopback peers are served.
 - H.264 High, no B-frames, keyframe every second, MPEG-TS with PCR. Encoding runs only while a client is connected. No audio.
-- Automatic bitrate: 6 Mbit/s at 720p30 (10 at 1080p30, +50% at 60 fps), 1.2 Mbit/s over Bluetooth, reduced when the phone gets hot.
+- Automatic bitrate: 4 Mbit/s at 720p30 (8 at 1080p30, +50% at 60 fps), 1.2 Mbit/s over Bluetooth, reduced when the phone gets hot.
 - A slow client loses frames up to the next keyframe, so latency does not build up.
 - The stream is portrait (720x1280 or 1080x1920), like the phone held upright: each frame is rotated on the GPU before encoding. The app is portrait-locked.
 - 60 fps is offered at 720p only; 1080p is 30 fps. A software-decoding PC struggles with 1080p60.

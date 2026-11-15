@@ -22,7 +22,7 @@ Target phone: HONOR X9c, MagicOS 9 (Android 15, API 35), arm64, MediaTek Dimensi
   - Our own small TS muxer in Kotlin (PAT/PMT/PES/PCR), pure and unit tested.
   - Rejected: MJPEG (high bitrate, unusable over Bluetooth; kept only as a latency fallback), RTSP (more protocol for no gain), WebRTC (huge dependency).
 - **Camera2 + MediaCodec, no CameraX**, no third-party libraries. One capture session with two outputs: the encoder's input Surface and a preview SurfaceView.
-  - Defaults: back camera, 720p (720x1280 portrait) @ 30 fps, about 6 Mbit/s (USB/Wi-Fi) or 1.2 Mbit/s (Bluetooth). 1080p and 60 fps as options when the camera supports them.
+  - Defaults: back camera, 720p (720x1280 portrait) @ 30 fps, about 4 Mbit/s (USB/Wi-Fi) or 1.2 Mbit/s (Bluetooth). 1080p and 60 fps as options when the camera supports them.
   - Encoder: no B-frames, 1 s keyframe interval, `PARAMETER_KEY_REQUEST_SYNC_FRAME` when a client connects. Continuous-video autofocus; optional video stabilisation.
 - **Stream server:** plain `ServerSocket`; an HTTP/1.0 response header followed by an endless TS stream.
   - Each new client gets PAT/PMT + SPS/PPS and starts at the next keyframe.
@@ -56,7 +56,7 @@ Header button **Mode**: *Cable (USB)* / *Wireless (Wi-Fi / Bluetooth)*. The serv
 ## OBS setup (the whole PC side; also goes into the README and the in-app guide)
 1. OBS → Sources → **+** → **Media Source** → uncheck **Local File**.
 2. **Input:** the URL from the app, e.g. `http://192.168.x.y:8765/cam.ts`. **Input format:** empty (or `mpegts`).
-3. **Network buffering** 0 MB, **Reconnect delay** 1 s, **Use hardware decoding when available** on, **Restart playback when source becomes active** off. If this OBS version has an **FFmpeg Options** field: `fflags=nobuffer flags=low_delay` (to verify that the field exists and helps).
+3. **Network buffering** 0 MB, **Reconnect delay** 1 s, **Use hardware decoding when available** on, **Restart playback when source becomes active** off. **FFmpeg Options**: `probesize=32768 fflags=nobuffer flags=low_delay`. Measured with ffmpeg from WSL: time to first frame 6.3 s with `fflags=nobuffer flags=low_delay` alone, 1.4 s with `probesize=32768` added (default probesize 5 MB is about 5 s of stream, and the user's OBS showed 1-2 s of lag with 2 MB default network buffering). Phone-side delay (camera to encoder output) measured in the app: about 79 ms.
 4. For Teams/Zoom/Meet: OBS → **Start Virtual Camera**, then choose "OBS Virtual Camera" in the meeting app. On Windows the virtual camera needs a one-time admin step to register it (the normal OBS installer does it; the scoop package prints a note about running its register script as admin). OBS by itself needs no admin.
 
 Optional later convenience: the app exports an OBS scene-collection JSON with the source preconfigured (the URL still needs editing when the tether IP changes). Only if manual setup proves annoying.
@@ -66,7 +66,7 @@ Legend: **verified** = confirmed by the user on real hardware; **built** = imple
 
 | Phase | State | Notes |
 | --- | --- | --- |
-| 0. Hardware spikes | **partly** | Stream over `adb forward` **verified by me, not by the user in OBS**: ffprobe from WSL decodes 1080p H.264 from the phone. Over Wi-Fi from WSL (192.168.1.3 to 192.168.1.2) TCP 8765 timed out while RethinkDNS's VPN (`tun0`) was on, and worked (status page, ffprobe 1080p H.264) once the user stopped it. USB tethering, Bluetooth PAN, OBS and latency: **todo** |
+| 0. Hardware spikes | **partly; user confirmed Wi-Fi and USB tethering work with OBS** (Bluetooth not tried) | Stream over `adb forward` **verified by me, not by the user in OBS**: ffprobe from WSL decodes 1080p H.264 from the phone. Over Wi-Fi from WSL (192.168.1.3 to 192.168.1.2) TCP 8765 timed out while RethinkDNS's VPN (`tun0`) was on, and worked (status page, ffprobe 1080p H.264) once the user stopped it. USB tethering, Bluetooth PAN, OBS and latency: **todo** |
 | 1. Skeleton | **built** | |
 | 2. Camera → encoder → TS → HTTP | **built** | unit tests incl. ffmpeg decode; camera + encoder + server run on the phone (screenshot, ffprobe via adb forward) |
 | 3. Cable mode | **built** | link detection, URL/copy, tethering shortcut, adb forward URL, dim overlay; tethering itself not tried |
@@ -110,6 +110,7 @@ OBS reconnects (reconnect delay), camera errors and disconnects, encoder restart
 AAC audio in the TS, portrait output, zoom/exposure controls, MJPEG endpoint for an OBS Browser Source (latency fallback), OBS scene-collection export.
 
 ## Risks / unknowns (test early)
+- **Latency (measured 2026-11-15):** phone side (camera to encoder output) about 80-95 ms, shown in the app. The 1-2 s lag the user saw came from the receiver: OBS Network Buffering default 2 MB, and FFmpeg's default probesize (5 MB, about 5 s of stream; first frame after 6.3 s versus 1.4 s with `probesize=32768`). Wi-Fi power saving caused repeated frame drops (55-66 per 10 s); a `WIFI_MODE_FULL_LOW_LATENCY` lock cut that to about 11 per 10 s and emptied the send queue. Glass-to-glass in OBS not yet measured by the user.
 - **VPN on the phone blocks inbound connections** (seen with RethinkDNS on the user's phone). The app warns when a `tun*`/`ppp*`/`wg*` interface is up.
 - **USB tethering on the HONOR X9c:** interface name; subnet (Android 11+ randomises tethering subnets, so `192.168.42.x` is not guaranteed); whether it can be enabled without mobile data; whether the PC can reach the phone's port.
 - **Work PC:** a tethering network adapter may be blocked by policy or flagged by the security software (endpoint security software, which reports to an admin). Test there first; never try to evade it. adb forward is the fallback, and may also be unavailable there.

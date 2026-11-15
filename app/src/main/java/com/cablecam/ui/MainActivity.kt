@@ -286,7 +286,7 @@ class MainActivity : Activity() {
         statusDetail.text = when {
             !s.running -> "Tap Start, then add the address in OBS."
             s.encoding -> "${s.width}x${s.height} · ${s.fps.toInt()} fps\n${"%.1f".format(s.kbps / 1000f)} of ${"%.1f".format(s.targetKbps / 1000f)} Mbit/s" +
-                "\n${s.clients.size} viewer${if (s.clients.size == 1) "" else "s"}"
+                "\n${s.clients.size} viewer${if (s.clients.size == 1) "" else "s"} · phone delay ${s.latencyMs} ms"
             else -> "The camera is on; video is encoded when OBS connects."
         }
         // A stopped stream shows no stale last frame: the surface is hidden, so the black panel shows.

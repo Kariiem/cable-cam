@@ -210,8 +210,8 @@ class StreamServer(
     companion object {
         const val DEFAULT_PORT = 8765
         const val STREAM_PATH = "/cam.ts"
-        /** About half a second of video: more than that queued means the link is too slow. */
-        const val MAX_QUEUED_FRAMES = 15
+        /** About a third of a second of video: more than that queued means the link is too slow. */
+        const val MAX_QUEUED_FRAMES = 10
         const val MAX_QUEUED_BYTES = 1 shl 20
         private const val SEND_BUFFER = 64 * 1024
         private const val MAX_CONNECTIONS = 8

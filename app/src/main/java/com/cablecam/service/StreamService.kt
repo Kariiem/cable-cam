@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
@@ -37,7 +38,7 @@ class StreamService : Service() {
         val encoding: Boolean = false,
         val width: Int = 0, val height: Int = 0,
         val fps: Float = 0f, val kbps: Int = 0, val targetKbps: Int = 0,
-        val thermal: Int = 0, val dropped: Long = 0,
+        val thermal: Int = 0, val dropped: Long = 0, val latencyMs: Long = 0,
     )
 
     inner class LocalBinder : Binder() { val service get() = this@StreamService }
@@ -50,6 +51,7 @@ class StreamService : Service() {
     private var rotator: FrameRotator? = null
     private var encoderFront = false
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
     private var thermalStatus = 0
     private val thermalListener = PowerManager.OnThermalStatusChangedListener { s ->
         main.post { thermalStatus = s; updateBitrate(); publish() }
@@ -73,7 +75,7 @@ class StreamService : Service() {
 
     fun status() = Status(
         running, error, clients, encoder != null, encoder?.width ?: 0, encoder?.height ?: 0,
-        fpsNow, kbpsNow, encoder?.currentKbps ?: 0, thermalStatus, dropHistory.sum(),
+        fpsNow, kbpsNow, encoder?.currentKbps ?: 0, thermalStatus, dropHistory.sum(), encoder?.latencyMs ?: 0,
     )
 
     private fun publish() { onStatus?.invoke(status()) }
@@ -99,6 +101,9 @@ class StreamService : Service() {
         startForeground(NOTIF_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
         wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "cablecam:stream").apply { setReferenceCounted(false); acquire() }
+        // Low-latency Wi-Fi: without it the radio's power saving pauses traffic for hundreds of ms, which shows up as lag.
+        wifiLock = (applicationContext.getSystemService(WIFI_SERVICE) as WifiManager)
+            .createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "cablecam:wifi").apply { setReferenceCounted(false); acquire() }
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         thermalStatus = pm.currentThermalStatus
         pm.addThermalStatusListener(mainExecutor, thermalListener)
@@ -128,6 +133,7 @@ class StreamService : Service() {
         camera.close()
         (getSystemService(POWER_SERVICE) as PowerManager).removeThermalStatusListener(thermalListener)
         wakeLock?.release(); wakeLock = null
+        wifiLock?.release(); wifiLock = null
         clients = emptyList(); fpsNow = 0f; kbpsNow = 0
         stopForeground(STOP_FOREGROUND_REMOVE)
         publish()

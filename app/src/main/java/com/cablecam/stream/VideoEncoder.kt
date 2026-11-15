@@ -117,16 +117,19 @@ class VideoEncoder(
         }
     }
 
+    /** Average camera-to-encoder delay over the last second, in ms (0 until measured). */
+    @Volatile var latencyMs = 0L
+        private set
     private var latencyFrames = 0
     private var latencySumMs = 0L
     private var latencyMaxMs = 0L
 
     /** Camera timestamp to encoded output: what the phone itself adds (GL pass + encoder). Logged once a second. */
     private fun measureLatency(ptsUs: Long) {
-        val ms = (android.os.SystemClock.elapsedRealtimeNanos() / 1000 - ptsUs) / 1000
+        val ms = (System.nanoTime() / 1000 - ptsUs) / 1000   // the camera clock is CLOCK_MONOTONIC, like nanoTime
         latencySumMs += ms; latencyFrames++; if (ms > latencyMaxMs) latencyMaxMs = ms
         if (latencyFrames >= fps) {
-            Log.i(TAG, "phone-side latency: avg ${latencySumMs / latencyFrames} ms, max $latencyMaxMs ms")
+            latencyMs = latencySumMs / latencyFrames
             latencyFrames = 0; latencySumMs = 0; latencyMaxMs = 0
         }
     }

@@ -18,7 +18,7 @@ object Presets {
     /** Automatic bitrate for one client. Bluetooth PAN carries roughly 1-2 Mbit/s, whatever the video size. */
     fun autoKbps(kind: LinkKind?, height: Int, fps: Int): Int {
         if (kind == LinkKind.BLUETOOTH) return BLUETOOTH_KBPS
-        val base = if (height >= 1080) 10_000 else 6_000
+        val base = if (height >= 1080) 8_000 else 4_000
         return if (fps > 30) base * 3 / 2 else base
     }
 
