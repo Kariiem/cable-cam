@@ -16,12 +16,15 @@ enum class LinkKind(val label: String) {
 
 data class Link(val kind: LinkKind, val iface: String, val ip: String) {
     val url: String get() = Links.url(ip)
+    val mjpegUrl: String get() = Links.mjpegUrl(ip)
 }
 
 /** Finds the phone's addresses a PC could connect to. The classification is pure and unit tested. */
 object Links {
     const val ADB_URL = "http://127.0.0.1:${StreamServer.DEFAULT_PORT}${StreamServer.STREAM_PATH}"
     const val ADB_COMMAND = "adb forward tcp:${StreamServer.DEFAULT_PORT} tcp:${StreamServer.DEFAULT_PORT}"
+
+    fun mjpegUrl(ip: String) = "http://$ip:${StreamServer.DEFAULT_PORT}${StreamServer.MJPEG_PATH}"
 
     fun url(ip: String) = "http://$ip:${StreamServer.DEFAULT_PORT}${StreamServer.STREAM_PATH}"
 

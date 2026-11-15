@@ -31,6 +31,7 @@ class CameraController(context: Context, private val onError: (String) -> Unit) 
     private var cameraId: String? = null
     private var preview: Surface? = null
     private var encoder: Surface? = null
+    private var jpeg: Surface? = null
     private var fps = 30
     private var stabilise = false
     private var torch = false
@@ -99,9 +100,14 @@ class CameraController(context: Context, private val onError: (String) -> Unit) 
     fun setPreview(s: Surface?) = handler.post { if (preview !== s) { preview = s; rebuild() } }
 
     /** With [wait], returns after the capture session no longer uses the old surface (so it can be released). */
-    fun setEncoderSurface(s: Surface?, wait: Boolean = false) {
+    fun setEncoderSurface(s: Surface?, wait: Boolean = false) = swap(wait) { if (encoder !== s) { encoder = s; true } else false }
+
+    /** The MJPEG pipeline's surface; same rules as [setEncoderSurface]. */
+    fun setJpegSurface(s: Surface?, wait: Boolean = false) = swap(wait) { if (jpeg !== s) { jpeg = s; true } else false }
+
+    private fun swap(wait: Boolean, change: () -> Boolean) {
         val done = java.util.concurrent.CountDownLatch(1)
-        handler.post { if (encoder !== s) { encoder = s; rebuild() }; done.countDown() }
+        handler.post { if (change()) rebuild(); done.countDown() }
         if (wait) done.await(1, java.util.concurrent.TimeUnit.SECONDS)
     }
 
@@ -109,7 +115,7 @@ class CameraController(context: Context, private val onError: (String) -> Unit) 
 
     private fun rebuild() {
         val d = device ?: return
-        val outputs = listOfNotNull(preview?.takeIf { it.isValid }, encoder?.takeIf { it.isValid })
+        val outputs = listOfNotNull(preview?.takeIf { it.isValid }, encoder?.takeIf { it.isValid }, jpeg?.takeIf { it.isValid })
         val gen = ++generation
         runCatching { session?.close() }
         session = null
@@ -139,6 +145,7 @@ class CameraController(context: Context, private val onError: (String) -> Unit) 
             val b = d.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
             preview?.takeIf { it.isValid }?.let(b::addTarget)
             encoder?.takeIf { it.isValid }?.let(b::addTarget)
+            jpeg?.takeIf { it.isValid }?.let(b::addTarget)
             b.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
             val ranges = c.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES).orEmpty()
                 .map { it.lower to it.upper }

@@ -21,6 +21,7 @@ import com.cablecam.net.Links
 import com.cablecam.settings.Presets
 import com.cablecam.settings.Settings
 import com.cablecam.stream.Frame
+import com.cablecam.stream.MjpegEncoder
 import com.cablecam.stream.StreamServer
 import com.cablecam.stream.VideoEncoder
 import com.cablecam.ui.MainActivity
@@ -49,6 +50,10 @@ class StreamService : Service() {
     private var server: StreamServer? = null
     private var encoder: VideoEncoder? = null
     private var rotator: FrameRotator? = null
+    private var jpeg: MjpegEncoder? = null
+    private var jpegRotator: FrameRotator? = null
+    private var jpegFront = false
+    private var stopJpegAt = 0L
     private var encoderFront = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
@@ -74,8 +79,9 @@ class StreamService : Service() {
         set(v) { field = v; v?.invoke(status()) }
 
     fun status() = Status(
-        running, error, clients, encoder != null, encoder?.width ?: 0, encoder?.height ?: 0,
-        fpsNow, kbpsNow, encoder?.currentKbps ?: 0, thermalStatus, dropHistory.sum(), encoder?.latencyMs ?: 0,
+        running, error, clients, encoder != null || jpeg != null,
+        encoder?.width ?: jpeg?.width ?: 0, encoder?.height ?: jpeg?.height ?: 0,
+        fpsNow, kbpsNow, encoder?.currentKbps ?: 0, thermalStatus, dropHistory.sum(), encoder?.latencyMs ?: jpeg?.latencyMs ?: 0,
     )
 
     private fun publish() { onStatus?.invoke(status()) }
@@ -128,7 +134,7 @@ class StreamService : Service() {
         if (!running) { stopSelf(); return }
         running = false
         main.removeCallbacks(ticker)
-        stopEncoder()
+        stopEncoder(); stopJpeg()
         server?.stop(); server = null
         camera.close()
         (getSystemService(POWER_SERVICE) as PowerManager).removeThermalStatusListener(thermalListener)
@@ -163,6 +169,10 @@ class StreamService : Service() {
         if (e != null && (e.width != settings.height || e.fps != settings.fps || encoderFront != settings.frontCamera)) {
             stopEncoder(); server?.dropClients()        // OBS reconnects and gets the new format
         } else updateBitrate()
+        val j = jpeg
+        if (j != null && (j.width != settings.height || j.fps != settings.fps || jpegFront != settings.frontCamera)) {
+            stopJpeg(); server?.dropClients()
+        }
         publish()
     }
 
@@ -178,13 +188,49 @@ class StreamService : Service() {
     private fun clientsChanged(list: List<StreamServer.ClientInfo>) {
         if (!running) return
         clients = list
-        if (list.isNotEmpty()) {
+        val now = System.currentTimeMillis()
+        if (list.any { !it.mjpeg }) {
             stopEncoderAt = 0
             if (encoder == null) startEncoder() else updateBitrate()
-        } else if (encoder != null) {
-            stopEncoderAt = System.currentTimeMillis() + ENCODER_LINGER_MS     // OBS often reconnects at once
-        }
+        } else if (encoder != null) stopEncoderAt = now + ENCODER_LINGER_MS     // OBS often reconnects at once
+        if (list.any { it.mjpeg }) {
+            stopJpegAt = 0
+            if (jpeg == null) startJpeg()
+        } else if (jpeg != null) stopJpegAt = now + ENCODER_LINGER_MS
         publish()
+    }
+
+    /** Motion JPEG pipeline: camera -> GPU pass (upright, portrait) -> ImageReader -> JPEG per picture. */
+    private fun startJpeg() {
+        val size = settings.height
+        val fps = settings.fps
+        val j = MjpegEncoder(
+            size, Presets.longSide(size), fps, JPEG_QUALITY,
+            onFrame = { f: Frame -> frames++; server?.broadcastJpeg(f) },
+            onError = { ex -> main.post { error = "JPEG encoder stopped: ${ex.message}"; stopJpeg(); server?.dropClients(); publish() } },
+        )
+        var r: FrameRotator? = null
+        try {
+            j.start()
+            r = FrameRotator(j.inputSurface, j.width, j.height, j.height, j.width)
+            r.start()
+        } catch (ex: Exception) {
+            r?.stop(); j.stop()
+            error = "JPEG encoder failed: ${ex.message}"
+            server?.dropClients()
+            return
+        }
+        jpeg = j; jpegRotator = r; jpegFront = settings.frontCamera
+        error = null
+        camera.setJpegSurface(r.inputSurface)
+    }
+
+    private fun stopJpeg() {
+        val j = jpeg ?: return
+        jpeg = null
+        camera.setJpegSurface(null, wait = true)
+        jpegRotator?.stop(); jpegRotator = null
+        j.stop()
     }
 
     private var lastKeyframeRequest = 0L
@@ -243,7 +289,7 @@ class StreamService : Service() {
 
     private fun currentTargetKbps(): Int {
         val links = Links.current()
-        val kinds = clients.map { Links.kindOf(it.local, links) }
+        val kinds = clients.filter { !it.mjpeg }.map { Links.kindOf(it.local, links) }
         return Presets.bitrateKbps(settings.bitrateKbps, kinds, settings.height, settings.fps, Presets.thermalFactor(thermalStatus))
     }
 
@@ -260,6 +306,9 @@ class StreamService : Service() {
             while (dropHistory.size > 10) dropHistory.removeFirst()
             if (stopEncoderAt != 0L && System.currentTimeMillis() >= stopEncoderAt && clients.isEmpty()) {
                 stopEncoderAt = 0; stopEncoder()
+            }
+            if (stopJpegAt != 0L && System.currentTimeMillis() >= stopJpegAt && clients.none { it.mjpeg }) {
+                stopJpegAt = 0; stopJpeg()
             }
             publish()
             main.postDelayed(this, 1000)
@@ -288,6 +337,8 @@ class StreamService : Service() {
         private const val ACTION_STOP = "com.cablecam.STOP"
         private const val ENCODER_LINGER_MS = 5000L
         private const val KEYFRAME_REQUEST_GAP_MS = 1000L
+        /** Experiment: JPEG quality for the MJPEG endpoint (about 60 KB per 720p picture at 75). */
+        private const val JPEG_QUALITY = 75
         @Volatile var instance: StreamService? = null
             private set
 

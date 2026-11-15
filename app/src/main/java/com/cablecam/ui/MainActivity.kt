@@ -301,7 +301,8 @@ class MainActivity : Activity() {
         statusLabel.text = name
         statusDetail.text = when {
             !s.running -> "Tap Start, then add the address in OBS."
-            s.encoding -> "${s.width}x${s.height} · ${s.fps.toInt()} fps\n${"%.1f".format(s.kbps / 1000f)} of ${"%.1f".format(s.targetKbps / 1000f)} Mbit/s" +
+            s.encoding -> "${s.width}x${s.height} · ${s.fps.toInt()} fps\n${"%.1f".format(s.kbps / 1000f)}" +
+                (if (s.targetKbps > 0) " of ${"%.1f".format(s.targetKbps / 1000f)}" else "") + " Mbit/s" +
                 "\n${s.clients.size} viewer${if (s.clients.size == 1) "" else "s"} · phone delay ${s.latencyMs} ms"
             else -> "The camera is on; video is encoded when OBS connects."
         }
@@ -332,7 +333,10 @@ class MainActivity : Activity() {
         if (key != urlKey) {
             urlKey = key
             urlList.removeAllViews()
-            for (l in shown) urlList.addView(urlRow("${l.kind.label} (${l.iface})", l.url))
+            for (l in shown) {
+                urlList.addView(urlRow("${l.kind.label} (${l.iface}): H.264", l.url))
+                urlList.addView(urlRow("Same link: MJPEG (no keyframes, about 4x the bandwidth)", l.mjpegUrl))
+            }
             adbBox.removeAllViews()
             if (mode == Mode.CABLE && showAdb) {
                 adbBox.addView(label(Guide.adbAlternative, 13f, col(R.color.text_dim)), lp().apply { topMargin = dp(4) })
