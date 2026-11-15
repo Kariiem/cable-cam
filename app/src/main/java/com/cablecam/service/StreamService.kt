@@ -15,6 +15,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.view.Surface
 import com.cablecam.camera.CameraController
+import com.cablecam.camera.FrameRotator
 import com.cablecam.net.Links
 import com.cablecam.settings.Presets
 import com.cablecam.settings.Settings
@@ -46,6 +47,8 @@ class StreamService : Service() {
     private lateinit var camera: CameraController
     private var server: StreamServer? = null
     private var encoder: VideoEncoder? = null
+    private var rotator: FrameRotator? = null
+    private var encoderFront = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var thermalStatus = 0
     private val thermalListener = PowerManager.OnThermalStatusChangedListener { s ->
@@ -149,7 +152,7 @@ class StreamService : Service() {
         error = null
         camera.open(settings.frontCamera, settings.fps, settings.stabilise)
         val e = encoder
-        if (e != null && (e.height != settings.height || e.fps != settings.fps)) {
+        if (e != null && (e.width != settings.height || e.fps != settings.fps || encoderFront != settings.frontCamera)) {
             stopEncoder(); server?.dropClients()        // OBS reconnects and gets the new format
         } else updateBitrate()
         publish()
@@ -177,23 +180,31 @@ class StreamService : Service() {
     }
 
     private fun startEncoder() {
-        val h = settings.height
+        val size = settings.height
+        val fps = settings.fps
+        // Portrait stream: the short side is the width. The camera delivers landscape pixels.
         val e = VideoEncoder(
-            Presets.width(h), h, settings.fps, currentTargetKbps(),
+            size, Presets.longSide(size), fps, currentTargetKbps(),
             onFrame = { f: Frame -> frames++; server?.broadcast(f) },
             onError = { ex -> main.post { encoderFailed(ex) } },
         )
+        var r: FrameRotator? = null
         try {
             e.start()
+            r = FrameRotator(e.inputSurface!!, e.width, e.height, e.height, e.width)
+            r.start()
         } catch (ex: Exception) {
+            r?.stop()
             e.stop()
             error = "Encoder failed: ${ex.message}"
             server?.dropClients()
             return
         }
         encoder = e
+        rotator = r
+        encoderFront = settings.frontCamera
         error = null
-        camera.setEncoderSurface(e.inputSurface)
+        camera.setEncoderSurface(r.inputSurface)
     }
 
     private fun encoderFailed(ex: Exception) {
@@ -206,7 +217,8 @@ class StreamService : Service() {
     private fun stopEncoder() {
         val e = encoder ?: return
         encoder = null
-        camera.setEncoderSurface(null)
+        camera.setEncoderSurface(null, wait = true)
+        rotator?.stop(); rotator = null
         e.stop()
         fpsNow = 0f; kbpsNow = 0
     }

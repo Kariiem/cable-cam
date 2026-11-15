@@ -6,8 +6,12 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PresetsTest {
-    @Test fun widthIs16by9() {
-        assertEquals(1280, Presets.width(720)); assertEquals(1920, Presets.width(1080))
+    @Test fun portraitLongSide() {
+        assertEquals(1280, Presets.longSide(720)); assertEquals(1920, Presets.longSide(1080))
+    }
+
+    @Test fun sixtyFpsOnly720p() {
+        assertEquals(60, Presets.fpsFor(720, 60)); assertEquals(30, Presets.fpsFor(1080, 60)); assertEquals(30, Presets.fpsFor(1080, 30))
     }
 
     @Test fun automaticBitrateByLink() {

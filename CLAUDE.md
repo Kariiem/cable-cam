@@ -10,7 +10,7 @@ Two modes: **Cable (USB)** = USB tethering (fallback: `adb forward tcp:8765 tcp:
 All phases are implemented and unit-tested; the app runs on the phone and the stream decodes with ffprobe through `adb forward`. Not yet confirmed by the user: USB tethering, Bluetooth PAN, OBS Media Source, Virtual Camera, latency. Over Wi-Fi the stream decodes from WSL, but only with the phone's VPN (RethinkDNS) stopped; with it on, inbound TCP times out (the app warns about VPNs). See PLAN.md for details.
 
 ## Layout
-- `app/`: package `com.cablecam`; `ui/` (MainActivity, Guide, `CrashReport.kt`), `camera/CameraController.kt`, `stream/` (VideoEncoder, TsMuxer, StreamServer, Access), `net/Links.kt`, `settings/` (Settings, Presets), `service/StreamService.kt`
+- `app/`: package `com.cablecam`; `ui/` (MainActivity, Guide, `CrashReport.kt`), `camera/` (CameraController, FrameRotator = GL pass that feeds the encoder), `stream/` (VideoEncoder, TsMuxer, StreamServer, Access), `net/Links.kt`, `settings/` (Settings, Presets), `service/StreamService.kt`
 - `scripts/build-release.sh`: tests + signed APK + checksums into `dist/`
 
 ## Toolchain and commands

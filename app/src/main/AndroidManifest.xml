@@ -15,9 +15,9 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/AppTheme">
-        <!-- Landscape-locked: the camera sensors are landscape, so the stream is upright this way. -->
+        <!-- Portrait-locked: the stream is portrait too (rotated on the GPU), like the phone held upright. -->
         <activity android:name=".ui.MainActivity" android:exported="true"
-            android:screenOrientation="landscape"
+            android:screenOrientation="portrait"
             android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|uiMode">
             <intent-filter>

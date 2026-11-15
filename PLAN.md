@@ -22,7 +22,7 @@ Target phone: HONOR X9c, MagicOS 9 (Android 15, API 35), arm64, MediaTek Dimensi
   - Our own small TS muxer in Kotlin (PAT/PMT/PES/PCR), pure and unit tested.
   - Rejected: MJPEG (high bitrate, unusable over Bluetooth; kept only as a latency fallback), RTSP (more protocol for no gain), WebRTC (huge dependency).
 - **Camera2 + MediaCodec, no CameraX**, no third-party libraries. One capture session with two outputs: the encoder's input Surface and a preview SurfaceView.
-  - Defaults: back camera, 1280x720 @ 30 fps, about 6 Mbit/s (USB/Wi-Fi) or 1.2 Mbit/s (Bluetooth). 1080p and 60 fps as options when the camera supports them.
+  - Defaults: back camera, 720p (720x1280 portrait) @ 30 fps, about 6 Mbit/s (USB/Wi-Fi) or 1.2 Mbit/s (Bluetooth). 1080p and 60 fps as options when the camera supports them.
   - Encoder: no B-frames, 1 s keyframe interval, `PARAMETER_KEY_REQUEST_SYNC_FRAME` when a client connects. Continuous-video autofocus; optional video stabilisation.
 - **Stream server:** plain `ServerSocket`; an HTTP/1.0 response header followed by an endless TS stream.
   - Each new client gets PAT/PMT + SPS/PPS and starts at the next keyframe.
@@ -30,7 +30,7 @@ Target phone: HONOR X9c, MagicOS 9 (Android 15, API 35), arm64, MediaTek Dimensi
   - A slow client has a bounded queue; on overflow it drops frames until the next keyframe instead of building up latency.
   - `/` returns a tiny status page, so "can the PC reach the phone?" can be checked in a browser.
 - **Encode only while a client is connected** (the preview can keep running), to save battery and heat.
-- **Landscape-locked activity.** The sensor's native orientation is landscape, so the stream is upright when the phone is held landscape. Portrait output is a later option.
+- **Portrait activity and portrait stream** (user request): Camera2 → SurfaceTexture → OpenGL pass (`camera/FrameRotator.kt`) → encoder surface. The SurfaceTexture transform matrix already contains the sensor rotation, so front and back are upright with no extra code (checked by comparing a stream frame with the phone preview). 720p = 720x1280. 60 fps only at 720p.
 - **No audio in v1.** OBS Virtual Camera is video-only and meeting apps use the PC's microphone. That keeps the runtime permissions to the camera only. AAC in the same TS is a later option (adds RECORD_AUDIO).
 - **Permissions:** CAMERA (runtime; or `adb shell pm grant`), FOREGROUND_SERVICE + FOREGROUND_SERVICE_CAMERA (foreground service of type `camera`, started from the foreground Activity), INTERNET, ACCESS_NETWORK_STATE, ACCESS_WIFI_STATE, POST_NOTIFICATIONS, WAKE_LOCK. Nothing else.
 - **Keep alive:** `FLAG_KEEP_SCREEN_ON` while streaming, plus a "dim screen" black overlay to save power. The foreground service keeps MagicOS from killing the app; the setup guide links to the battery-optimisation exemption (and the adb `cmd deviceidle whitelist +com.cablecam` / `cmd appops set com.cablecam RUN_ANY_IN_BACKGROUND allow` trick).

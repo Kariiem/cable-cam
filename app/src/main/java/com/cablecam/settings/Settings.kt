@@ -23,7 +23,7 @@ class Settings(context: Context) {
         set(v) = prefs.edit().putInt("height", v).apply()
 
     var fps: Int
-        get() = prefs.getInt("fps", 30).takeIf { it in Presets.FPS } ?: 30
+        get() = Presets.fpsFor(height, prefs.getInt("fps", 30).takeIf { it in Presets.FPS } ?: 30)
         set(v) = prefs.edit().putInt("fps", v).apply()
 
     /** 0 = automatic. */

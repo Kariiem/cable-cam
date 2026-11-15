@@ -6,11 +6,14 @@ import com.cablecam.net.LinkKind
 object Presets {
     val HEIGHTS = listOf(720, 1080)
     val FPS = listOf(30, 60)
+    /** 60 fps is only offered at 720p: 1080p60 is too heavy for the link and for software decoding on the PC. */
+    fun fpsFor(size: Int, fps: Int) = if (size > 720) 30 else fps
     /** Manual bitrate choices in kbit/s; 0 means automatic (by link). */
     val BITRATES_KBPS = listOf(0, 800, 1200, 2000, 4000, 6000, 8000, 12000)
     const val BLUETOOTH_KBPS = 1200
 
-    fun width(height: Int) = height * 16 / 9
+    /** [size] is the short side of the (portrait) stream: 720 gives 720x1280. */
+    fun longSide(size: Int) = size * 16 / 9
 
     /** Automatic bitrate for one client. Bluetooth PAN carries roughly 1-2 Mbit/s, whatever the video size. */
     fun autoKbps(kind: LinkKind?, height: Int, fps: Int): Int {

@@ -37,7 +37,7 @@ class CameraController(context: Context, private val onError: (String) -> Unit) 
     private var opening = false
     private var generation = 0     // invalidates callbacks of older sessions
 
-    data class Info(val id: String, val front: Boolean, val heights: List<Int>, val maxFps: Int, val torch: Boolean)
+    data class Info(val id: String, val front: Boolean, val heights: List<Int>, val maxFps: Int, val torch: Boolean, val sensorOrientation: Int)
 
     /** What a camera offers (16:9 sizes the encoder can take), for the settings screen. */
     fun info(front: Boolean): Info? = runCatching {
@@ -45,10 +45,11 @@ class CameraController(context: Context, private val onError: (String) -> Unit) 
         val c = manager.getCameraCharacteristics(id)
         val map = c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
         val heights = map.getOutputSizes(MediaCodec::class.java).orEmpty()
-            .filter { it.width == Presets.width(it.height) }.map { it.height }.filter { it in Presets.HEIGHTS }
+            .filter { it.width == Presets.longSide(it.height) }.map { it.height }.filter { it in Presets.HEIGHTS }
             .distinct().sorted()
         val maxFps = c.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES).orEmpty().maxOfOrNull { it.upper } ?: 30
-        Info(id, front, heights, maxFps, c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true)
+        Info(id, front, heights, maxFps, c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true,
+            c.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 90)
     }.getOrNull()
 
     private fun findId(front: Boolean): String? {
@@ -97,7 +98,12 @@ class CameraController(context: Context, private val onError: (String) -> Unit) 
 
     fun setPreview(s: Surface?) = handler.post { if (preview !== s) { preview = s; rebuild() } }
 
-    fun setEncoderSurface(s: Surface?) = handler.post { if (encoder !== s) { encoder = s; rebuild() } }
+    /** With [wait], returns after the capture session no longer uses the old surface (so it can be released). */
+    fun setEncoderSurface(s: Surface?, wait: Boolean = false) {
+        val done = java.util.concurrent.CountDownLatch(1)
+        handler.post { if (encoder !== s) { encoder = s; rebuild() }; done.countDown() }
+        if (wait) done.await(1, java.util.concurrent.TimeUnit.SECONDS)
+    }
 
     fun setTorch(on: Boolean) = handler.post { torch = on; applyRepeating() }
 

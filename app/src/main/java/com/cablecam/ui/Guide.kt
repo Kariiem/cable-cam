@@ -21,8 +21,9 @@ object Guide {
     }
 
     val adbAlternative =
-        "If USB tethering is blocked or the address keeps changing, use adb on the PC (USB debugging on):\n" +
-            "  ${Links.ADB_COMMAND}\nand use ${Links.ADB_URL} in OBS."
+        "Optional, only if USB tethering is blocked or its address keeps changing. Needs adb (Android platform-tools) " +
+            "on the PC and USB debugging on the phone, with the cable plugged in. On the PC run:\n" +
+            "  ${Links.ADB_COMMAND}\nand use ${Links.ADB_URL} in OBS. Nothing else in the app needs adb."
 
     val obs =
         "In OBS:\n" +

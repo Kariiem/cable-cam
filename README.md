@@ -29,7 +29,8 @@ A VPN on the phone (including DNS/ad blockers such as RethinkDNS) blocks connect
 - H.264 High, no B-frames, keyframe every second, MPEG-TS with PCR. Encoding runs only while a client is connected. No audio.
 - Automatic bitrate: 6 Mbit/s at 720p30 (10 at 1080p30, +50% at 60 fps), 1.2 Mbit/s over Bluetooth, reduced when the phone gets hot.
 - A slow client loses frames up to the next keyframe, so latency does not build up.
-- Hold the phone in landscape (the app is locked to it); the stream is upright that way.
+- The stream is portrait (720x1280 or 1080x1920), like the phone held upright: each frame is rotated on the GPU before encoding. The app is portrait-locked.
+- 60 fps is offered at 720p only; 1080p is 30 fps. A software-decoding PC struggles with 1080p60.
 - Keep the screen on while streaming (**Dim screen** saves power). Exempt the app from battery optimisation if MagicOS kills it.
 
 ## Build

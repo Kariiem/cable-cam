@@ -58,6 +58,9 @@ class MainActivity : Activity() {
     private lateinit var statusText: TextView
     private lateinit var settingsButtons: LinearLayout
     private lateinit var tetherButton: Button
+    private lateinit var adbButton: Button
+    private lateinit var adbInfo: TextView
+    private val urlHolder by lazy { LinearLayout(this).apply { orientation = LinearLayout.VERTICAL } }
     private lateinit var dimOverlay: View
     private var pendingSurface: android.view.Surface? = null
 
@@ -119,38 +122,33 @@ class MainActivity : Activity() {
 
     private fun buildUi(): View {
         val root = FrameLayout(this)
-        val content = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-
-        // Left: preview, 16:9.
-        surface = SurfaceView(this)
-        surface.holder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceCreated(h: SurfaceHolder) { pendingSurface = h.surface; service?.setPreview(h.surface) }
-            override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) {}
-            override fun surfaceDestroyed(h: SurfaceHolder) { pendingSurface = null; service?.setPreview(null) }
-        })
-        surface.holder.setFixedSize(1280, 720)
-        val previewBox = object : FrameLayout(this) {
-            override fun onMeasure(w: Int, h: Int) {
-                val width = MeasureSpec.getSize(w)
-                super.onMeasure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
-                    MeasureSpec.makeMeasureSpec(width * 9 / 16, MeasureSpec.EXACTLY))
-            }
-        }.apply { addView(surface, ViewGroup.LayoutParams(-1, -1)); setBackgroundColor(Color.BLACK) }
-        val left = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL
-            addView(previewBox, LinearLayout.LayoutParams(-1, -2))
-        }
-        content.addView(left, LinearLayout.LayoutParams(0, -1, 1f).apply { setMargins(dp(12), dp(8), dp(6), dp(8)) })
-
-        // Right: controls.
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), dp(8), dp(16), dp(16)) }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(24)) }
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(text("Cable Cam", 22f, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
         modeButton = button("") { chooseMode() }
         header.addView(modeButton)
         col.addView(header)
 
-        col.addView(text("Address for OBS (Media Source > Input)", 13f, dim = true).apply { setPadding(0, dp(8), 0, 0) })
+        // Preview (portrait, like the stream) next to Start and the status.
+        surface = SurfaceView(this)
+        surface.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(h: SurfaceHolder) { pendingSurface = h.surface; service?.setPreview(h.surface) }
+            override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) {}
+            override fun surfaceDestroyed(h: SurfaceHolder) { pendingSurface = null; service?.setPreview(null) }
+        })
+        surface.holder.setFixedSize(1280, 720)       // the camera delivers landscape buffers; the system rotates them
+        val previewBox = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); addView(surface, ViewGroup.LayoutParams(-1, -1)) }
+        val top = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        top.addView(previewBox, LinearLayout.LayoutParams(dp(135), dp(240)).apply { rightMargin = dp(12) })
+        val side = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        startButton = button("Start") { toggleStreaming() }.apply { textSize = 18f }
+        side.addView(startButton, LinearLayout.LayoutParams(-1, -2))
+        statusText = text("", 13f)
+        side.addView(statusText)
+        top.addView(side, LinearLayout.LayoutParams(0, -2, 1f))
+        col.addView(top, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+
+        col.addView(text("Address for OBS (Media Source > Input)", 13f, dim = true).apply { setPadding(0, dp(12), 0, 0) })
         urlList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(urlList)
         hint = text("", 13f, dim = true)
@@ -158,22 +156,21 @@ class MainActivity : Activity() {
         tetherButton = button("Open tethering settings") { openTetherSettings() }
         col.addView(tetherButton)
 
-        startButton = button("Start") { toggleStreaming() }.apply { textSize = 18f }
-        col.addView(startButton, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        statusText = text("", 13f)
-        col.addView(statusText)
-
         settingsButtons = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(settingsButtons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
 
         val row = LinearLayout(this)
-        row.addView(button("adb address") { showAdb = !showAdb; refresh() }, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(button("OBS guide") { showGuide() }, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(button("Dim screen") { dim(true) }, LinearLayout.LayoutParams(0, -2, 1f))
         col.addView(row)
+        adbButton = button("") { showAdb = !showAdb; refresh() }
+        col.addView(adbButton)
+        adbInfo = text("", 13f, dim = true)
+        col.addView(adbInfo)
+        col.addView(urlHolder)
 
-        content.addView(ScrollView(this).apply { addView(col) }, LinearLayout.LayoutParams(0, -1, 1f))
-        root.addView(content, FrameLayout.LayoutParams(-1, -1))
+        val scroll = ScrollView(this).apply { addView(col) }
+        root.addView(scroll, FrameLayout.LayoutParams(-1, -1))
 
         dimOverlay = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK); visibility = View.GONE
@@ -186,10 +183,10 @@ class MainActivity : Activity() {
         root.setOnApplyWindowInsetsListener { _, insets ->
             if (Build.VERSION.SDK_INT >= 30) {
                 val b = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-                content.setPadding(b.left, b.top, b.right, b.bottom)
+                scroll.setPadding(b.left, b.top, b.right, b.bottom)
             } else {
                 @Suppress("DEPRECATION")
-                content.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
+                scroll.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
                     insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
             }
             insets
@@ -224,8 +221,12 @@ class MainActivity : Activity() {
         urlList.removeAllViews()
         val shown = shownLinks()
         for (l in shown) urlList.addView(urlRow("${l.kind.label}  ${l.iface}", l.url))
-        if (mode == Mode.CABLE && (showAdb || shown.isEmpty()))
-            urlList.addView(urlRow("Only on a PC running \"${Links.ADB_COMMAND}\"", Links.ADB_URL, small = true))
+        adbButton.visibility = if (mode == Mode.CABLE) View.VISIBLE else View.GONE
+        adbButton.text = if (showAdb) "Hide adb alternative" else "No tethering? Use adb instead"
+        adbInfo.visibility = if (mode == Mode.CABLE && showAdb) View.VISIBLE else View.GONE
+        adbInfo.text = Guide.adbAlternative
+        urlHolder.removeAllViews()
+        if (mode == Mode.CABLE && showAdb) urlHolder.addView(urlRow("Address when adb forward is running on the PC", Links.ADB_URL, small = true))
         val vpnWarning = if (vpn) "A VPN is active on the phone (for example a DNS or ad blocker). It can block connections " +
             "from the PC: pause it if OBS cannot connect.\n" else ""
         hint.text = vpnWarning + when {
@@ -273,17 +274,23 @@ class MainActivity : Activity() {
 
     private fun rebuildSettings() {
         settingsButtons.removeAllViews()
-        fun add(label: String, onClick: () -> Unit) = settingsButtons.addView(button(label, onClick))
-        add("Camera: ${if (settings.frontCamera) "front" else "back"}") {
-            settings.frontCamera = !settings.frontCamera; changed()
+        var row: LinearLayout? = null
+        fun add(label: String, onClick: () -> Unit) {
+            val r = row?.takeIf { it.childCount == 1 } ?: LinearLayout(this).also { row = it; settingsButtons.addView(it) }
+            r.addView(button(label, onClick), LinearLayout.LayoutParams(0, -2, 1f))
         }
-        add("Size: ${settings.height}p") { pick("Size", Presets.HEIGHTS.map { "${it}p" }, Presets.HEIGHTS.indexOf(settings.height)) { settings.height = Presets.HEIGHTS[it]; changed() } }
-        add("Frame rate: ${settings.fps} fps") { pick("Frame rate", Presets.FPS.map { "$it fps" }, Presets.FPS.indexOf(settings.fps)) { settings.fps = Presets.FPS[it]; changed() } }
-        add("Bitrate: ${if (settings.bitrateKbps == 0) "automatic" else "${settings.bitrateKbps} kbit/s"}") {
+        add("Camera: ${if (settings.frontCamera) "front" else "back"}") { settings.frontCamera = !settings.frontCamera; changed() }
+        add("Size: ${settings.height}p") { pick("Size (60 fps needs 720p)", Presets.HEIGHTS.map { "${it}p" }, Presets.HEIGHTS.indexOf(settings.height)) { settings.height = Presets.HEIGHTS[it]; changed() } }
+        add("Rate: ${settings.fps} fps") {
+            pick("Frame rate (60 fps switches to 720p)", Presets.FPS.map { "$it fps" }, Presets.FPS.indexOf(settings.fps)) {
+                settings.fps = Presets.FPS[it]; if (settings.fps > 30) settings.height = 720; changed()
+            }
+        }
+        add("Bitrate: ${if (settings.bitrateKbps == 0) "auto" else "${settings.bitrateKbps} k"}") {
             pick("Bitrate", Presets.BITRATES_KBPS.map { if (it == 0) "Automatic (by link)" else "$it kbit/s" },
                 Presets.BITRATES_KBPS.indexOf(settings.bitrateKbps)) { settings.bitrateKbps = Presets.BITRATES_KBPS[it]; changed() }
         }
-        add("Stabilisation: ${if (settings.stabilise) "on" else "off"}") { settings.stabilise = !settings.stabilise; changed() }
+        add("Stabilise: ${if (settings.stabilise) "on" else "off"}") { settings.stabilise = !settings.stabilise; changed() }
         add("Torch: ${if (torchOn) "on" else "off"}") { torchOn = !torchOn; service?.setTorch(torchOn); refresh() }
     }
 
